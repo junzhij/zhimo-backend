@@ -54,8 +54,8 @@
   - Add document metadata storage and retrieval
   - _Requirements: 1.5, 2.5_
 
-- [-] 4. Implement Orchestrator Agent core functionality
-- [ ] 4.1 Create agent communication framework
+- [x] 4. Implement Orchestrator Agent core functionality
+- [x] 4.1 Create agent communication framework
   - Implement message queue system for agent coordination
   - Create agent registration and discovery mechanism
   - Build task distribution and monitoring system
@@ -73,26 +73,26 @@
   - Add comprehensive error logging and user notifications
   - _Requirements: 6.4, 6.5_
 
-- [ ] 5. Build Ingestion Agent for file processing
-- [ ] 5.1 Implement PDF text extraction
+- [x] 5. Build Ingestion Agent for file processing
+- [x] 5.1 Implement PDF text extraction
   - Create PDF parser using pdf-parse or similar library
   - Extract text content while preserving structure
   - Handle image-based PDFs: use OCR service to transform it into plain txt.
   - _Requirements: 1.1, 2.2_
 
-- [ ] 5.2 Add Word and PowerPoint document processing
+- [x] 5.2 Add Word and PowerPoint document processing
   - Implement Word document text extraction
   - Create PowerPoint slide content extraction
   - Preserve formatting and structure information
   - _Requirements: 1.2, 2.2_
 
-- [ ] 5.3 Integrate OCR service for image processing
-  - Set up OCR service integration (Tesseract or cloud OCR)
+- [x] 5.3 Integrate OCR service for image processing
+  - Set up OCR service integration (Provider:AWS)
   - Process image files and extract text content
   - Handle various image formats and quality levels
   - _Requirements: 1.3, 2.2_
 
-- [ ] 5.4 Create text standardization and structure extraction
+- [x] 5.4 Create text standardization and structure extraction
   - Implement text cleaning and normalization
   - Extract document structure (headings, paragraphs, sections)
   - Generate standardized JSON output format

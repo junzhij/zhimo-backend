@@ -142,20 +142,20 @@
   - Store relationship data for visualization
   - _Requirements: 2.4, 4.3_
 
-- [ ] 8. Develop Pedagogy Agent for educational content
-- [ ] 8.1 Build question generation system
+- [x] 8. Develop Pedagogy Agent for educational content
+- [x] 8.1 Build question generation system
   - Create multiple choice question generator
   - Implement fill-in-the-blank question creation
   - Generate short answer and essay questions
   - _Requirements: 4.2, 4.4_
 
-- [ ] 8.2 Implement flashcard creation functionality
+- [x] 8.2 Implement flashcard creation functionality
   - Convert definitions to flashcard format
   - Create front/back card structure
   - Add difficulty levels and spaced repetition data
   - _Requirements: 4.1, 4.4_
 
-- [ ] 8.3 Add open-ended question generation
+- [x] 8.3 Add open-ended question generation
   - Generate discussion and critical thinking questions
   - Create Socratic-style inquiry questions
   - Adapt questions to content complexity
@@ -269,3 +269,5 @@
   - Configure OCR service for production use
   - Set up monitoring and alerting for external services
   - _Requirements: 1.1, 1.3, 6.4_
+
+- [ ] 16. Complete API docs and playground use swagger

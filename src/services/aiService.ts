@@ -712,6 +712,47 @@ ${text}`;
       .filter(point => point.length > 0);
   }
 
+  /**
+   * Generic method for making AI completions
+   */
+  async generateCompletion(
+    systemPrompt: string,
+    userPrompt: string,
+    options: {
+      maxTokens?: number;
+      temperature?: number;
+      model?: string;
+    } = {}
+  ): Promise<string> {
+    try {
+      const response = await this.client.chat.completions.create({
+        model: options.model || this.config.model!,
+        messages: [
+          {
+            role: 'system',
+            content: systemPrompt
+          },
+          {
+            role: 'user',
+            content: userPrompt
+          }
+        ],
+        max_tokens: options.maxTokens || this.config.maxTokens,
+        temperature: options.temperature || this.config.temperature,
+      });
+
+      const content = response.choices[0]?.message?.content;
+      if (!content) {
+        throw new Error('No content received from AI service');
+      }
+
+      return content;
+    } catch (error) {
+      console.error('Error generating completion:', error);
+      throw new Error(`Failed to generate completion: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
   async testConnection(): Promise<boolean> {
     try {
       const response = await this.client.chat.completions.create({

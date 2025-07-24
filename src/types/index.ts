@@ -119,3 +119,134 @@ export interface S3UploadResult {
   bucket: string;
   etag: string;
 }
+
+// Pedagogy Agent Types
+export interface QuestionGenerationOptions {
+  questionTypes: ('multiple_choice' | 'fill_in_blank' | 'short_answer' | 'essay')[];
+  difficulty: 'easy' | 'medium' | 'hard';
+  numQuestions: number;
+  focusAreas?: string[];
+}
+
+export interface MultipleChoiceQuestion {
+  id: string;
+  question: string;
+  options: string[];
+  correctAnswer: number; // Index of correct option
+  explanation: string;
+  difficulty: 'easy' | 'medium' | 'hard';
+  sourceLocation: {
+    section: string;
+    page?: number;
+  };
+  tags: string[];
+}
+
+export interface FillInBlankQuestion {
+  id: string;
+  question: string; // Text with blanks marked as ___
+  answers: string[]; // Correct answers for each blank
+  explanation: string;
+  difficulty: 'easy' | 'medium' | 'hard';
+  sourceLocation: {
+    section: string;
+    page?: number;
+  };
+  tags: string[];
+}
+
+export interface ShortAnswerQuestion {
+  id: string;
+  question: string;
+  sampleAnswer: string;
+  keyPoints: string[]; // Key points that should be in the answer
+  difficulty: 'easy' | 'medium' | 'hard';
+  sourceLocation: {
+    section: string;
+    page?: number;
+  };
+  tags: string[];
+}
+
+export interface EssayQuestion {
+  id: string;
+  question: string;
+  guidelines: string; // Guidelines for answering
+  keyThemes: string[]; // Themes that should be addressed
+  suggestedLength: string; // e.g., "300-500 words"
+  difficulty: 'easy' | 'medium' | 'hard';
+  sourceLocation: {
+    section: string;
+    page?: number;
+  };
+  tags: string[];
+}
+
+export interface QuestionGenerationResult {
+  multipleChoice: MultipleChoiceQuestion[];
+  fillInBlank: FillInBlankQuestion[];
+  shortAnswer: ShortAnswerQuestion[];
+  essay: EssayQuestion[];
+  totalGenerated: number;
+  confidence: number;
+}
+
+export interface FlashcardOptions {
+  includeDefinitions: boolean;
+  includeFormulas: boolean;
+  includeConcepts: boolean;
+  difficulty: 'easy' | 'medium' | 'hard';
+  spacedRepetition: boolean;
+}
+
+export interface Flashcard {
+  id: string;
+  front: string;
+  back: string;
+  cardType: 'definition' | 'formula' | 'concept' | 'fact';
+  difficulty: 'easy' | 'medium' | 'hard';
+  sourceLocation: {
+    section: string;
+    page?: number;
+  };
+  tags: string[];
+  spacedRepetitionData?: {
+    easeFactor: number;
+    interval: number;
+    repetitions: number;
+    nextReviewDate: Date;
+  };
+}
+
+export interface FlashcardGenerationResult {
+  flashcards: Flashcard[];
+  totalGenerated: number;
+  confidence: number;
+}
+
+export interface OpenEndedQuestionOptions {
+  questionTypes: ('discussion' | 'critical_thinking' | 'socratic' | 'analysis')[];
+  complexity: 'basic' | 'intermediate' | 'advanced';
+  numQuestions: number;
+  focusThemes?: string[];
+}
+
+export interface OpenEndedQuestion {
+  id: string;
+  question: string;
+  questionType: 'discussion' | 'critical_thinking' | 'socratic' | 'analysis';
+  complexity: 'basic' | 'intermediate' | 'advanced';
+  guidingPoints: string[]; // Points to help guide the answer
+  relatedConcepts: string[];
+  sourceLocation: {
+    section: string;
+    page?: number;
+  };
+  tags: string[];
+}
+
+export interface OpenEndedQuestionResult {
+  questions: OpenEndedQuestion[];
+  totalGenerated: number;
+  confidence: number;
+}

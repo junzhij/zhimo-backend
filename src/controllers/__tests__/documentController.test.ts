@@ -1,11 +1,11 @@
 import { Request, Response } from 'express';
 import { documentController } from '../documentController';
 import { s3Service } from '../../services/s3Service';
-import { mysqlConnection } from '../../database/mysql';
+import { documentModel } from '../../models/documentModel';
 
-// Mock the S3 service and database
+// Mock the S3 service and document model
 jest.mock('../../services/s3Service');
-jest.mock('../../database/mysql');
+jest.mock('../../models/documentModel');
 
 describe('DocumentController', () => {
   let mockRequest: any;
@@ -50,8 +50,20 @@ describe('DocumentController', () => {
         etag: '"test-etag"',
       };
 
+      const mockDocument = {
+        id: 'test-doc-id',
+        user_id: 'test-user-id',
+        original_name: 'test.pdf',
+        file_type: 'PDF',
+        file_size: 1024,
+        s3_path: mockS3Result.key,
+        processing_status: 'pending' as const,
+        upload_timestamp: new Date(),
+        metadata: {}
+      };
+
       (s3Service.uploadFile as jest.Mock).mockResolvedValue(mockS3Result);
-      (mysqlConnection.executeQuery as jest.Mock).mockResolvedValue([]);
+      (documentModel.create as jest.Mock).mockResolvedValue(mockDocument);
 
       await documentController.uploadDocument(
         mockRequest,
@@ -65,12 +77,22 @@ describe('DocumentController', () => {
         mimeType: 'application/pdf',
       });
 
-      expect(mysqlConnection.executeQuery).toHaveBeenCalled();
+      expect(documentModel.create).toHaveBeenCalledWith({
+        userId: 'test-user-id',
+        originalName: 'test.pdf',
+        fileType: 'PDF',
+        fileSize: 1024,
+        s3Path: mockS3Result.key,
+        metadata: expect.objectContaining({
+          mimeType: 'application/pdf'
+        })
+      });
       expect(mockStatus).toHaveBeenCalledWith(201);
       expect(mockJson).toHaveBeenCalledWith({
         success: true,
         message: 'File uploaded successfully',
         data: expect.objectContaining({
+          documentId: 'test-doc-id',
           originalName: 'test.pdf',
           fileType: 'PDF',
           s3Path: mockS3Result.key,
@@ -175,7 +197,7 @@ describe('DocumentController', () => {
         metadata: {}
       };
 
-      (mysqlConnection.executeQuery as jest.Mock).mockResolvedValue([mockDocument]);
+      (documentModel.findByIdAndUser as jest.Mock).mockResolvedValue(mockDocument);
       (s3Service.fileExists as jest.Mock).mockResolvedValue(true);
       (s3Service.getSignedUrl as jest.Mock).mockResolvedValue('https://signed-url.com');
 
@@ -184,7 +206,7 @@ describe('DocumentController', () => {
         mockResponse as Response
       );
 
-      expect(mysqlConnection.executeQuery).toHaveBeenCalled();
+      expect(documentModel.findByIdAndUser).toHaveBeenCalledWith('test-doc-id', 'test-user-id');
       expect(s3Service.fileExists).toHaveBeenCalledWith('documents/user/file.pdf');
       expect(s3Service.getSignedUrl).toHaveBeenCalledWith('documents/user/file.pdf', 3600);
       expect(mockJson).toHaveBeenCalledWith({
@@ -204,7 +226,7 @@ describe('DocumentController', () => {
         headers: { 'user-id': 'test-user-id' },
       };
 
-      (mysqlConnection.executeQuery as jest.Mock).mockResolvedValue([]);
+      (documentModel.findByIdAndUser as jest.Mock).mockResolvedValue(null);
 
       await documentController.getDocument(
         mockRequest as Request,
@@ -251,13 +273,8 @@ describe('DocumentController', () => {
         original_name: 'test.pdf'
       };
 
-      (mysqlConnection.executeQuery as jest.Mock).mockResolvedValue([mockDocument]);
-      (mysqlConnection.executeTransaction as jest.Mock).mockImplementation(async (callback) => {
-        const mockConnection = {
-          execute: jest.fn().mockResolvedValue([{ affectedRows: 1 }, {}])
-        };
-        return await callback(mockConnection);
-      });
+      (documentModel.findByIdAndUser as jest.Mock).mockResolvedValue(mockDocument);
+      (documentModel.deleteByIdAndUser as jest.Mock).mockResolvedValue(true);
       (s3Service.deleteFile as jest.Mock).mockResolvedValue(undefined);
 
       await documentController.deleteDocument(
@@ -265,8 +282,8 @@ describe('DocumentController', () => {
         mockResponse as Response
       );
 
-      expect(mysqlConnection.executeQuery).toHaveBeenCalled();
-      expect(mysqlConnection.executeTransaction).toHaveBeenCalled();
+      expect(documentModel.findByIdAndUser).toHaveBeenCalledWith('test-doc-id', 'test-user-id');
+      expect(documentModel.deleteByIdAndUser).toHaveBeenCalledWith('test-doc-id', 'test-user-id');
       expect(mockJson).toHaveBeenCalledWith({
         success: true,
         message: 'Document deleted successfully',
@@ -279,7 +296,7 @@ describe('DocumentController', () => {
         headers: { 'user-id': 'test-user-id' },
       };
 
-      (mysqlConnection.executeQuery as jest.Mock).mockResolvedValue([]);
+      (documentModel.findByIdAndUser as jest.Mock).mockResolvedValue(null);
 
       await documentController.deleteDocument(
         mockRequest as Request,
@@ -331,14 +348,17 @@ describe('DocumentController', () => {
         }
       ];
 
-      (mysqlConnection.executeQuery as jest.Mock)
-        .mockResolvedValueOnce([{ total: 1 }])
-        .mockResolvedValueOnce(mockDocuments);
+      (documentModel.findByUser as jest.Mock).mockResolvedValue({
+        documents: mockDocuments,
+        total: 1
+      });
 
       await documentController.listDocuments(
         mockRequest as Request,
         mockResponse as Response
       );
+
+      expect(documentModel.findByUser).toHaveBeenCalledWith('test-user-id', undefined, 10, 0);
 
       expect(mockJson).toHaveBeenCalledWith({
         success: true,
@@ -371,6 +391,326 @@ describe('DocumentController', () => {
       expect(mockJson).toHaveBeenCalledWith({
         error: 'Unauthorized',
         message: 'User ID is required',
+      });
+    });
+  });
+
+  describe('updateProcessingStatus', () => {
+    it('should update processing status successfully', async () => {
+      mockRequest = {
+        params: { id: 'test-doc-id' },
+        headers: { 'user-id': 'test-user-id' },
+        body: { status: 'completed', processedTimestamp: '2024-01-01T00:00:00.000Z' },
+      };
+
+      const mockDocument = {
+        id: 'test-doc-id',
+        user_id: 'test-user-id',
+        processing_status: 'processing'
+      };
+
+      (documentModel.findByIdAndUser as jest.Mock).mockResolvedValue(mockDocument);
+      (documentModel.updateStatus as jest.Mock).mockResolvedValue(true);
+
+      await documentController.updateProcessingStatus(
+        mockRequest as Request,
+        mockResponse as Response
+      );
+
+      expect(documentModel.updateStatus).toHaveBeenCalledWith(
+        'test-doc-id',
+        'completed',
+        new Date('2024-01-01T00:00:00.000Z')
+      );
+
+      expect(mockJson).toHaveBeenCalledWith({
+        success: true,
+        message: 'Document status updated successfully',
+        data: {
+          documentId: 'test-doc-id',
+          status: 'completed',
+          processedTimestamp: new Date('2024-01-01T00:00:00.000Z')
+        }
+      });
+    });
+
+    it('should return 400 for invalid status', async () => {
+      mockRequest = {
+        params: { id: 'test-doc-id' },
+        headers: { 'user-id': 'test-user-id' },
+        body: { status: 'invalid-status' },
+      };
+
+      await documentController.updateProcessingStatus(
+        mockRequest as Request,
+        mockResponse as Response
+      );
+
+      expect(mockStatus).toHaveBeenCalledWith(400);
+      expect(mockJson).toHaveBeenCalledWith({
+        error: 'Invalid status',
+        message: 'Status must be one of: pending, processing, completed, failed'
+      });
+    });
+
+    it('should return 404 when document not found', async () => {
+      mockRequest = {
+        params: { id: 'nonexistent-doc-id' },
+        headers: { 'user-id': 'test-user-id' },
+        body: { status: 'completed' },
+      };
+
+      (documentModel.findByIdAndUser as jest.Mock).mockResolvedValue(null);
+
+      await documentController.updateProcessingStatus(
+        mockRequest as Request,
+        mockResponse as Response
+      );
+
+      expect(mockStatus).toHaveBeenCalledWith(404);
+      expect(mockJson).toHaveBeenCalledWith({
+        error: 'Document not found',
+        message: 'The requested document does not exist or you do not have access to it'
+      });
+    });
+  });
+
+  describe('getProcessingStatus', () => {
+    it('should get processing status successfully', async () => {
+      mockRequest = {
+        params: { id: 'test-doc-id' },
+        headers: { 'user-id': 'test-user-id' },
+      };
+
+      const mockDocument = {
+        id: 'test-doc-id',
+        original_name: 'test.pdf',
+        processing_status: 'completed',
+        upload_timestamp: new Date('2024-01-01T00:00:00.000Z'),
+        processed_timestamp: new Date('2024-01-01T01:00:00.000Z'),
+        metadata: {
+          processingSteps: {
+            ingestion: { status: 'completed', timestamp: new Date() }
+          },
+          processingMetrics: {
+            duration: 3600
+          }
+        }
+      };
+
+      (documentModel.findByIdAndUser as jest.Mock).mockResolvedValue(mockDocument);
+
+      await documentController.getProcessingStatus(
+        mockRequest as Request,
+        mockResponse as Response
+      );
+
+      expect(mockJson).toHaveBeenCalledWith({
+        success: true,
+        data: {
+          documentId: 'test-doc-id',
+          originalName: 'test.pdf',
+          processingStatus: 'completed',
+          uploadTimestamp: new Date('2024-01-01T00:00:00.000Z'),
+          processedTimestamp: new Date('2024-01-01T01:00:00.000Z'),
+          processingSteps: {
+            ingestion: { status: 'completed', timestamp: expect.any(Date) }
+          },
+          processingMetrics: {
+            duration: 3600
+          }
+        }
+      });
+    });
+  });
+
+  describe('updateMetadata', () => {
+    it('should update metadata successfully', async () => {
+      mockRequest = {
+        params: { id: 'test-doc-id' },
+        headers: { 'user-id': 'test-user-id' },
+        body: {
+          metadata: {
+            extractedContent: { textLength: 1000, pageCount: 5 }
+          }
+        },
+      };
+
+      const mockDocument = {
+        id: 'test-doc-id',
+        user_id: 'test-user-id'
+      };
+
+      (documentModel.findByIdAndUser as jest.Mock).mockResolvedValue(mockDocument);
+      (documentModel.updateMetadata as jest.Mock).mockResolvedValue(true);
+
+      await documentController.updateMetadata(
+        mockRequest as Request,
+        mockResponse as Response
+      );
+
+      expect(documentModel.updateMetadata).toHaveBeenCalledWith(
+        'test-doc-id',
+        { extractedContent: { textLength: 1000, pageCount: 5 } }
+      );
+
+      expect(mockJson).toHaveBeenCalledWith({
+        success: true,
+        message: 'Document metadata updated successfully',
+        data: {
+          documentId: 'test-doc-id',
+          metadata: { extractedContent: { textLength: 1000, pageCount: 5 } }
+        }
+      });
+    });
+
+    it('should return 400 for invalid metadata', async () => {
+      mockRequest = {
+        params: { id: 'test-doc-id' },
+        headers: { 'user-id': 'test-user-id' },
+        body: { metadata: 'invalid-metadata' },
+      };
+
+      await documentController.updateMetadata(
+        mockRequest as Request,
+        mockResponse as Response
+      );
+
+      expect(mockStatus).toHaveBeenCalledWith(400);
+      expect(mockJson).toHaveBeenCalledWith({
+        error: 'Invalid metadata',
+        message: 'Metadata must be a valid object'
+      });
+    });
+  });
+
+  describe('addProcessingStep', () => {
+    it('should add processing step successfully', async () => {
+      mockRequest = {
+        params: { id: 'test-doc-id' },
+        headers: { 'user-id': 'test-user-id' },
+        body: {
+          stepName: 'ingestion',
+          status: 'completed'
+        },
+      };
+
+      const mockDocument = {
+        id: 'test-doc-id',
+        user_id: 'test-user-id'
+      };
+
+      (documentModel.findByIdAndUser as jest.Mock).mockResolvedValue(mockDocument);
+      (documentModel.addProcessingStep as jest.Mock).mockResolvedValue(true);
+
+      await documentController.addProcessingStep(
+        mockRequest as Request,
+        mockResponse as Response
+      );
+
+      expect(documentModel.addProcessingStep).toHaveBeenCalledWith(
+        'test-doc-id',
+        'ingestion',
+        'completed',
+        undefined
+      );
+
+      expect(mockJson).toHaveBeenCalledWith({
+        success: true,
+        message: 'Processing step added successfully',
+        data: {
+          documentId: 'test-doc-id',
+          stepName: 'ingestion',
+          status: 'completed',
+          timestamp: expect.any(Date)
+        }
+      });
+    });
+
+    it('should add processing step with error', async () => {
+      mockRequest = {
+        params: { id: 'test-doc-id' },
+        headers: { 'user-id': 'test-user-id' },
+        body: {
+          stepName: 'analysis',
+          status: 'failed',
+          error: 'Processing timeout'
+        },
+      };
+
+      const mockDocument = {
+        id: 'test-doc-id',
+        user_id: 'test-user-id'
+      };
+
+      (documentModel.findByIdAndUser as jest.Mock).mockResolvedValue(mockDocument);
+      (documentModel.addProcessingStep as jest.Mock).mockResolvedValue(true);
+
+      await documentController.addProcessingStep(
+        mockRequest as Request,
+        mockResponse as Response
+      );
+
+      expect(documentModel.addProcessingStep).toHaveBeenCalledWith(
+        'test-doc-id',
+        'analysis',
+        'failed',
+        'Processing timeout'
+      );
+
+      expect(mockJson).toHaveBeenCalledWith({
+        success: true,
+        message: 'Processing step added successfully',
+        data: {
+          documentId: 'test-doc-id',
+          stepName: 'analysis',
+          status: 'failed',
+          timestamp: expect.any(Date),
+          error: 'Processing timeout'
+        }
+      });
+    });
+
+    it('should return 400 for missing required fields', async () => {
+      mockRequest = {
+        params: { id: 'test-doc-id' },
+        headers: { 'user-id': 'test-user-id' },
+        body: { stepName: 'ingestion' }, // missing status
+      };
+
+      await documentController.addProcessingStep(
+        mockRequest as Request,
+        mockResponse as Response
+      );
+
+      expect(mockStatus).toHaveBeenCalledWith(400);
+      expect(mockJson).toHaveBeenCalledWith({
+        error: 'Missing required fields',
+        message: 'stepName and status are required'
+      });
+    });
+  });
+
+  describe('getProcessingStats', () => {
+    it('should get processing statistics successfully', async () => {
+      const mockStats = {
+        pending: 5,
+        processing: 2,
+        completed: 10,
+        failed: 1,
+        total: 18
+      };
+
+      (documentModel.getProcessingStats as jest.Mock).mockResolvedValue(mockStats);
+
+      await documentController.getProcessingStats(
+        mockRequest as Request,
+        mockResponse as Response
+      );
+
+      expect(mockJson).toHaveBeenCalledWith({
+        success: true,
+        data: mockStats
       });
     });
   });

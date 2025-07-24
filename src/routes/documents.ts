@@ -30,4 +30,33 @@ router.delete('/:id',
   asyncHandler(documentController.deleteDocument.bind(documentController))
 );
 
+// Update document processing status
+router.put('/:id/status', 
+  validateDocumentId,
+  asyncHandler(documentController.updateProcessingStatus.bind(documentController))
+);
+
+// Get document processing status
+router.get('/:id/status', 
+  validateDocumentId,
+  asyncHandler(documentController.getProcessingStatus.bind(documentController))
+);
+
+// Update document metadata
+router.put('/:id/metadata', 
+  validateDocumentId,
+  asyncHandler(documentController.updateMetadata.bind(documentController))
+);
+
+// Add processing step to document
+router.post('/:id/processing-step', 
+  validateDocumentId,
+  asyncHandler(documentController.addProcessingStep.bind(documentController))
+);
+
+// Get processing statistics (admin endpoint)
+router.get('/admin/stats', 
+  asyncHandler(documentController.getProcessingStats.bind(documentController))
+);
+
 export default router;

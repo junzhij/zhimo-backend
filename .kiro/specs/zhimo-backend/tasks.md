@@ -41,14 +41,14 @@
   - Generate unique file paths and handle upload errors
   - _Requirements: 1.1, 1.2, 1.3_
 
-- [-] 3.2 Create document management API endpoints
+- [x] 3.2 Create document management API endpoints
   - Implement POST /api/documents/upload endpoint
   - Create GET /api/documents/:id for document retrieval
   - Add DELETE /api/documents/:id for document removal
   - Implement proper error handling and validation
   - _Requirements: 1.1, 1.5_
 
-- [ ] 3.3 Build document metadata tracking system
+- [x] 3.3 Build document metadata tracking system
   - Create document model with processing status tracking
   - Implement status updates (pending, processing, completed, failed)
   - Add document metadata storage and retrieval

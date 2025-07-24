@@ -1,10 +1,8 @@
 import { Request, Response } from 'express';
 import { s3Service } from '../services/s3Service';
 import { FileUploadResponse, Document } from '../types';
-import { mysqlConnection } from '../database/mysql';
-import { v4 as uuidv4 } from 'uuid';
+import { documentModel, ProcessingStatus } from '../models/documentModel';
 import path from 'path';
-import { RowDataPacket, ResultSetHeader } from 'mysql2';
 
 // Extend Request interface to include user property
 interface AuthenticatedRequest extends Request {
@@ -48,21 +46,11 @@ export class DocumentController {
         mimeType: file.mimetype,
       });
 
-      // Generate document ID
-      const documentId = uuidv4();
-      
       // Determine file type from extension
       const fileExtension = path.extname(file.originalname).toLowerCase();
       const fileType = this.getFileTypeFromExtension(fileExtension);
 
-      // Save document metadata to database
-      const insertQuery = `
-        INSERT INTO documents (
-          id, user_id, original_name, file_type, file_size, s3_path, 
-          processing_status, upload_timestamp, metadata
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), ?)
-      `;
-
+      // Create document metadata
       const metadata = {
         mimeType: file.mimetype,
         s3Bucket: uploadResult.bucket,
@@ -70,25 +58,24 @@ export class DocumentController {
         uploadLocation: uploadResult.location
       };
 
-      await mysqlConnection.executeQuery(insertQuery, [
-        documentId,
-        userId,
-        file.originalname,
+      // Create document using model
+      const document = await documentModel.create({
+        userId: userId as string,
+        originalName: file.originalname,
         fileType,
-        file.size,
-        uploadResult.key,
-        'pending',
-        JSON.stringify(metadata)
-      ]);
+        fileSize: file.size,
+        s3Path: uploadResult.key,
+        metadata
+      });
 
       // Prepare response
       const response: FileUploadResponse = {
-        documentId,
-        originalName: file.originalname,
-        fileType,
-        s3Path: uploadResult.key,
-        uploadTimestamp: new Date(),
-        processingStatus: 'pending',
+        documentId: document.id,
+        originalName: document.original_name,
+        fileType: document.file_type,
+        s3Path: document.s3_path,
+        uploadTimestamp: document.upload_timestamp,
+        processingStatus: document.processing_status,
       };
 
       res.status(201).json({
@@ -130,25 +117,16 @@ export class DocumentController {
         return;
       }
 
-      // Get document from database
-      const selectQuery = `
-        SELECT id, user_id, original_name, file_type, file_size, s3_path, 
-               processing_status, upload_timestamp, processed_timestamp, metadata
-        FROM documents 
-        WHERE id = ? AND user_id = ?
-      `;
+      // Get document from database using model
+      const document = await documentModel.findByIdAndUser(id, userId);
 
-      const results = await mysqlConnection.executeQuery<RowDataPacket[]>(selectQuery, [id, userId]);
-
-      if (!results || results.length === 0) {
+      if (!document) {
         res.status(404).json({
           error: 'Document not found',
           message: 'The requested document does not exist or you do not have access to it'
         });
         return;
       }
-
-      const document = results[0] as Document;
 
       // Check if file exists in S3
       const exists = await s3Service.fileExists(document.s3_path);
@@ -206,15 +184,9 @@ export class DocumentController {
       }
 
       // Get document from database to verify ownership and get S3 path
-      const selectQuery = `
-        SELECT id, user_id, s3_path, original_name
-        FROM documents 
-        WHERE id = ? AND user_id = ?
-      `;
+      const document = await documentModel.findByIdAndUser(id, userId);
 
-      const results = await mysqlConnection.executeQuery<RowDataPacket[]>(selectQuery, [id, userId]);
-
-      if (!results || results.length === 0) {
+      if (!document) {
         res.status(404).json({
           error: 'Document not found',
           message: 'The requested document does not exist or you do not have access to it'
@@ -222,27 +194,25 @@ export class DocumentController {
         return;
       }
 
-      const document = results[0];
+      // Delete document using model
+      const deleted = await documentModel.deleteByIdAndUser(id, userId);
+      
+      if (!deleted) {
+        res.status(500).json({
+          error: 'Internal server error',
+          message: 'Failed to delete document from database'
+        });
+        return;
+      }
 
-      // Use transaction to ensure data consistency
-      await mysqlConnection.executeTransaction(async (connection) => {
-        // Delete from database first
-        const deleteQuery = 'DELETE FROM documents WHERE id = ? AND user_id = ?';
-        const deleteResult = await connection.execute(deleteQuery, [id, userId]) as [ResultSetHeader, any];
-        
-        if (deleteResult[0].affectedRows === 0) {
-          throw new Error('Failed to delete document from database');
-        }
-
-        // Delete from S3
-        try {
-          await s3Service.deleteFile(document.s3_path);
-        } catch (s3Error) {
-          // Log S3 error but don't fail the transaction
-          // The database record is already deleted
-          console.error('Failed to delete file from S3:', s3Error);
-        }
-      });
+      // Delete from S3
+      try {
+        await s3Service.deleteFile(document.s3_path);
+      } catch (s3Error) {
+        // Log S3 error but don't fail the operation
+        // The database record is already deleted
+        console.error('Failed to delete file from S3:', s3Error);
+      }
 
       res.json({
         success: true,
@@ -295,32 +265,19 @@ export class DocumentController {
 
       const offset = (page - 1) * limit;
 
-      // Build query with optional status filter
-      let whereClause = 'WHERE user_id = ?';
-      const queryParams: any[] = [userId];
+      // Validate status filter
+      const validStatuses: ProcessingStatus[] = ['pending', 'processing', 'completed', 'failed'];
+      const statusFilter = status && validStatuses.includes(status as ProcessingStatus) 
+        ? status as ProcessingStatus 
+        : undefined;
 
-      if (status && ['pending', 'processing', 'completed', 'failed'].includes(status)) {
-        whereClause += ' AND processing_status = ?';
-        queryParams.push(status);
-      }
-
-      // Get total count
-      const countQuery = `SELECT COUNT(*) as total FROM documents ${whereClause}`;
-      const countResults = await mysqlConnection.executeQuery<RowDataPacket[]>(countQuery, queryParams);
-      const total = countResults[0].total;
-
-      // Get documents with pagination
-      const selectQuery = `
-        SELECT id, original_name, file_type, file_size, processing_status, 
-               upload_timestamp, processed_timestamp
-        FROM documents 
-        ${whereClause}
-        ORDER BY upload_timestamp DESC
-        LIMIT ? OFFSET ?
-      `;
-
-      queryParams.push(limit, offset);
-      const documents = await mysqlConnection.executeQuery<RowDataPacket[]>(selectQuery, queryParams);
+      // Get documents using model
+      const { documents, total } = await documentModel.findByUser(
+        userId, 
+        statusFilter, 
+        limit, 
+        offset
+      );
 
       res.json({
         success: true,
@@ -343,6 +300,289 @@ export class DocumentController {
       res.status(500).json({
         error: 'Internal server error',
         message: 'Failed to retrieve documents'
+      });
+    }
+  }
+
+  /**
+   * Update document processing status
+   */
+  async updateProcessingStatus(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const { status, processedTimestamp } = req.body;
+      const userId = req.headers['user-id'] as string;
+
+      if (!userId) {
+        res.status(401).json({
+          error: 'Unauthorized',
+          message: 'User ID is required'
+        });
+        return;
+      }
+
+      // Validate status
+      const validStatuses: ProcessingStatus[] = ['pending', 'processing', 'completed', 'failed'];
+      if (!status || !validStatuses.includes(status)) {
+        res.status(400).json({
+          error: 'Invalid status',
+          message: 'Status must be one of: pending, processing, completed, failed'
+        });
+        return;
+      }
+
+      // Verify document exists and user has access
+      const document = await documentModel.findByIdAndUser(id, userId);
+      if (!document) {
+        res.status(404).json({
+          error: 'Document not found',
+          message: 'The requested document does not exist or you do not have access to it'
+        });
+        return;
+      }
+
+      // Update status
+      const timestamp = processedTimestamp ? new Date(processedTimestamp) : undefined;
+      const updated = await documentModel.updateStatus(id, status, timestamp);
+
+      if (!updated) {
+        res.status(500).json({
+          error: 'Internal server error',
+          message: 'Failed to update document status'
+        });
+        return;
+      }
+
+      res.json({
+        success: true,
+        message: 'Document status updated successfully',
+        data: {
+          documentId: id,
+          status,
+          processedTimestamp: timestamp
+        }
+      });
+
+    } catch (error) {
+      console.error('Update processing status error:', error);
+      
+      res.status(500).json({
+        error: 'Internal server error',
+        message: 'Failed to update document status'
+      });
+    }
+  }
+
+  /**
+   * Get document processing status
+   */
+  async getProcessingStatus(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const userId = req.headers['user-id'] as string;
+
+      if (!userId) {
+        res.status(401).json({
+          error: 'Unauthorized',
+          message: 'User ID is required'
+        });
+        return;
+      }
+
+      // Get document
+      const document = await documentModel.findByIdAndUser(id, userId);
+      if (!document) {
+        res.status(404).json({
+          error: 'Document not found',
+          message: 'The requested document does not exist or you do not have access to it'
+        });
+        return;
+      }
+
+      res.json({
+        success: true,
+        data: {
+          documentId: document.id,
+          originalName: document.original_name,
+          processingStatus: document.processing_status,
+          uploadTimestamp: document.upload_timestamp,
+          processedTimestamp: document.processed_timestamp,
+          processingSteps: document.metadata?.processingSteps || {},
+          processingMetrics: document.metadata?.processingMetrics || {}
+        }
+      });
+
+    } catch (error) {
+      console.error('Get processing status error:', error);
+      
+      res.status(500).json({
+        error: 'Internal server error',
+        message: 'Failed to retrieve document status'
+      });
+    }
+  }
+
+  /**
+   * Update document metadata
+   */
+  async updateMetadata(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const { metadata } = req.body;
+      const userId = req.headers['user-id'] as string;
+
+      if (!userId) {
+        res.status(401).json({
+          error: 'Unauthorized',
+          message: 'User ID is required'
+        });
+        return;
+      }
+
+      if (!metadata || typeof metadata !== 'object') {
+        res.status(400).json({
+          error: 'Invalid metadata',
+          message: 'Metadata must be a valid object'
+        });
+        return;
+      }
+
+      // Verify document exists and user has access
+      const document = await documentModel.findByIdAndUser(id, userId);
+      if (!document) {
+        res.status(404).json({
+          error: 'Document not found',
+          message: 'The requested document does not exist or you do not have access to it'
+        });
+        return;
+      }
+
+      // Update metadata
+      const updated = await documentModel.updateMetadata(id, metadata);
+
+      if (!updated) {
+        res.status(500).json({
+          error: 'Internal server error',
+          message: 'Failed to update document metadata'
+        });
+        return;
+      }
+
+      res.json({
+        success: true,
+        message: 'Document metadata updated successfully',
+        data: {
+          documentId: id,
+          metadata
+        }
+      });
+
+    } catch (error) {
+      console.error('Update metadata error:', error);
+      
+      res.status(500).json({
+        error: 'Internal server error',
+        message: 'Failed to update document metadata'
+      });
+    }
+  }
+
+  /**
+   * Add processing step to document metadata
+   */
+  async addProcessingStep(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const { stepName, status, error } = req.body;
+      const userId = req.headers['user-id'] as string;
+
+      if (!userId) {
+        res.status(401).json({
+          error: 'Unauthorized',
+          message: 'User ID is required'
+        });
+        return;
+      }
+
+      if (!stepName || !status) {
+        res.status(400).json({
+          error: 'Missing required fields',
+          message: 'stepName and status are required'
+        });
+        return;
+      }
+
+      // Validate status
+      const validStatuses: ProcessingStatus[] = ['pending', 'processing', 'completed', 'failed'];
+      if (!validStatuses.includes(status)) {
+        res.status(400).json({
+          error: 'Invalid status',
+          message: 'Status must be one of: pending, processing, completed, failed'
+        });
+        return;
+      }
+
+      // Verify document exists and user has access
+      const document = await documentModel.findByIdAndUser(id, userId);
+      if (!document) {
+        res.status(404).json({
+          error: 'Document not found',
+          message: 'The requested document does not exist or you do not have access to it'
+        });
+        return;
+      }
+
+      // Add processing step
+      const updated = await documentModel.addProcessingStep(id, stepName, status, error);
+
+      if (!updated) {
+        res.status(500).json({
+          error: 'Internal server error',
+          message: 'Failed to add processing step'
+        });
+        return;
+      }
+
+      res.json({
+        success: true,
+        message: 'Processing step added successfully',
+        data: {
+          documentId: id,
+          stepName,
+          status,
+          timestamp: new Date(),
+          ...(error && { error })
+        }
+      });
+
+    } catch (error) {
+      console.error('Add processing step error:', error);
+      
+      res.status(500).json({
+        error: 'Internal server error',
+        message: 'Failed to add processing step'
+      });
+    }
+  }
+
+  /**
+   * Get processing statistics
+   */
+  async getProcessingStats(req: Request, res: Response): Promise<void> {
+    try {
+      const stats = await documentModel.getProcessingStats();
+
+      res.json({
+        success: true,
+        data: stats
+      });
+
+    } catch (error) {
+      console.error('Get processing stats error:', error);
+      
+      res.status(500).json({
+        error: 'Internal server error',
+        message: 'Failed to retrieve processing statistics'
       });
     }
   }

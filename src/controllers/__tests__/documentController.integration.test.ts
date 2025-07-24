@@ -1,202 +1,341 @@
 import request from 'supertest';
-import app from '../../index';
-import { mysqlConnection } from '../../database/mysql';
+import express from 'express';
+import { documentController } from '../documentController';
+import { documentModel } from '../../models/documentModel';
 import { s3Service } from '../../services/s3Service';
+import documentRoutes from '../../routes/documents';
 
-// Mock external dependencies
-jest.mock('../../database/mysql');
+// Mock dependencies
+jest.mock('../../models/documentModel');
 jest.mock('../../services/s3Service');
-jest.mock('../../database', () => ({
-  DatabaseManager: {
-    initializeAll: jest.fn(),
-    healthCheck: jest.fn().mockResolvedValue({
-      mysql: true,
-      mongodb: true,
-      redis: true
-    }),
-    closeAll: jest.fn()
-  }
-}));
 
-describe('Document API Integration Tests', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
+const mockDocumentModel = documentModel as jest.Mocked<typeof documentModel>;
+const mockS3Service = s3Service as jest.Mocked<typeof s3Service>;
 
-  afterAll(async () => {
-    // Prevent Jest from hanging
-    await new Promise(resolve => setTimeout(resolve, 100));
-  });
+describe('Document Controller Integration Tests', () => {
+    let app: express.Application;
 
-  describe('POST /api/documents/upload', () => {
-    it('should upload a document successfully', async () => {
-      const mockS3Result = {
-        key: 'documents/test-user/2024-01-01/uuid_test.pdf',
-        location: 'https://test-bucket.s3.amazonaws.com/documents/test-user/2024-01-01/uuid_test.pdf',
-        bucket: 'test-bucket',
-        etag: '"test-etag"',
-      };
-
-      (s3Service.uploadFile as jest.Mock).mockResolvedValue(mockS3Result);
-      (mysqlConnection.executeQuery as jest.Mock).mockResolvedValue([]);
-
-      const response = await request(app)
-        .post('/api/documents/upload')
-        .set('user-id', 'test-user-id')
-        .attach('document', Buffer.from('mock pdf content'), 'test.pdf')
-        .expect(201);
-
-      expect(response.body.success).toBe(true);
-      expect(response.body.message).toBe('File uploaded successfully');
-      expect(response.body.data).toMatchObject({
-        originalName: 'test.pdf',
-        fileType: 'PDF',
-        s3Path: mockS3Result.key,
-        processingStatus: 'pending',
-      });
+    beforeEach(() => {
+        app = express();
+        app.use(express.json());
+        app.use('/api/documents', documentRoutes);
+        jest.clearAllMocks();
     });
 
-    it('should return 400 when no file is uploaded', async () => {
-      const response = await request(app)
-        .post('/api/documents/upload')
-        .set('user-id', 'test-user-id')
-        .expect(400);
+    describe('Document Processing Status Workflow', () => {
+        it('should handle complete document processing workflow', async () => {
+            const userId = 'test-user-123';
+            const documentId = 'test-doc-123';
 
-      expect(response.body.error).toBe('No file uploaded');
+            // Mock document creation
+            const mockDocument = {
+                id: documentId,
+                user_id: userId,
+                original_name: 'test.pdf',
+                file_type: 'PDF',
+                file_size: 1024,
+                s3_path: 'documents/test.pdf',
+                processing_status: 'pending' as const,
+                upload_timestamp: new Date(),
+                metadata: {}
+            };
+
+            mockDocumentModel.findByIdAndUser.mockResolvedValue(mockDocument);
+
+            // Test 1: Get initial processing status
+            const statusResponse1 = await request(app)
+                .get(`/api/documents/${documentId}/status`)
+                .set('user-id', userId)
+                .expect(200);
+
+            expect(statusResponse1.body.success).toBe(true);
+            expect(statusResponse1.body.data.processingStatus).toBe('pending');
+
+            // Test 2: Update status to processing
+            mockDocumentModel.updateStatus.mockResolvedValue(true);
+
+            await request(app)
+                .put(`/api/documents/${documentId}/status`)
+                .set('user-id', userId)
+                .send({ status: 'processing' })
+                .expect(200);
+
+            expect(mockDocumentModel.updateStatus).toHaveBeenCalledWith(
+                documentId,
+                'processing',
+                undefined
+            );
+
+            // Test 3: Add processing steps
+            mockDocumentModel.addProcessingStep.mockResolvedValue(true);
+
+            // Add ingestion step
+            await request(app)
+                .post(`/api/documents/${documentId}/processing-step`)
+                .set('user-id', userId)
+                .send({
+                    stepName: 'ingestion',
+                    status: 'completed'
+                })
+                .expect(200);
+
+            expect(mockDocumentModel.addProcessingStep).toHaveBeenCalledWith(
+                documentId,
+                'ingestion',
+                'completed',
+                undefined
+            );
+
+            // Add analysis step with error
+            await request(app)
+                .post(`/api/documents/${documentId}/processing-step`)
+                .set('user-id', userId)
+                .send({
+                    stepName: 'analysis',
+                    status: 'failed',
+                    error: 'Analysis timeout'
+                })
+                .expect(200);
+
+            expect(mockDocumentModel.addProcessingStep).toHaveBeenCalledWith(
+                documentId,
+                'analysis',
+                'failed',
+                'Analysis timeout'
+            );
+
+            // Test 4: Update metadata
+            mockDocumentModel.updateMetadata.mockResolvedValue(true);
+
+            const startTime = new Date();
+            const metadata = {
+                extractedContent: {
+                    textLength: 5000,
+                    pageCount: 10,
+                    language: 'en'
+                },
+                processingMetrics: {
+                    startTime: startTime.toISOString(),
+                    duration: 120
+                }
+            };
+
+            await request(app)
+                .put(`/api/documents/${documentId}/metadata`)
+                .set('user-id', userId)
+                .send({ metadata })
+                .expect(200);
+
+            expect(mockDocumentModel.updateMetadata).toHaveBeenCalledWith(
+                documentId,
+                metadata
+            );
+
+            // Test 5: Final status update to failed (due to analysis failure)
+            await request(app)
+                .put(`/api/documents/${documentId}/status`)
+                .set('user-id', userId)
+                .send({
+                    status: 'failed',
+                    processedTimestamp: new Date().toISOString()
+                })
+                .expect(200);
+
+            expect(mockDocumentModel.updateStatus).toHaveBeenCalledWith(
+                documentId,
+                'failed',
+                expect.any(Date)
+            );
+        });
+
+        it('should handle unauthorized access to processing endpoints', async () => {
+            const documentId = 'test-doc-123';
+
+            // Test without user-id header
+            await request(app)
+                .get(`/api/documents/${documentId}/status`)
+                .expect(401);
+
+            await request(app)
+                .put(`/api/documents/${documentId}/status`)
+                .send({ status: 'completed' })
+                .expect(401);
+
+            await request(app)
+                .put(`/api/documents/${documentId}/metadata`)
+                .send({ metadata: {} })
+                .expect(401);
+
+            await request(app)
+                .post(`/api/documents/${documentId}/processing-step`)
+                .send({ stepName: 'test', status: 'completed' })
+                .expect(401);
+        });
+
+        it('should handle document not found scenarios', async () => {
+            const userId = 'test-user-123';
+            const documentId = 'nonexistent-doc';
+
+            mockDocumentModel.findByIdAndUser.mockResolvedValue(null);
+
+            await request(app)
+                .get(`/api/documents/${documentId}/status`)
+                .set('user-id', userId)
+                .expect(404);
+
+            await request(app)
+                .put(`/api/documents/${documentId}/status`)
+                .set('user-id', userId)
+                .send({ status: 'completed' })
+                .expect(404);
+
+            await request(app)
+                .put(`/api/documents/${documentId}/metadata`)
+                .set('user-id', userId)
+                .send({ metadata: {} })
+                .expect(404);
+
+            await request(app)
+                .post(`/api/documents/${documentId}/processing-step`)
+                .set('user-id', userId)
+                .send({ stepName: 'test', status: 'completed' })
+                .expect(404);
+        });
+
+        it('should validate processing status values', async () => {
+            const userId = 'test-user-123';
+            const documentId = 'test-doc-123';
+
+            const mockDocument = {
+                id: documentId,
+                user_id: userId,
+                original_name: 'test.pdf',
+                file_type: 'PDF',
+                file_size: 1024,
+                s3_path: 'documents/test.pdf',
+                processing_status: 'pending' as const,
+                upload_timestamp: new Date(),
+                metadata: {}
+            };
+
+            mockDocumentModel.findByIdAndUser.mockResolvedValue(mockDocument);
+
+            // Test invalid status values
+            await request(app)
+                .put(`/api/documents/${documentId}/status`)
+                .set('user-id', userId)
+                .send({ status: 'invalid-status' })
+                .expect(400);
+
+            await request(app)
+                .post(`/api/documents/${documentId}/processing-step`)
+                .set('user-id', userId)
+                .send({ stepName: 'test', status: 'invalid-status' })
+                .expect(400);
+
+            // Test missing required fields
+            await request(app)
+                .post(`/api/documents/${documentId}/processing-step`)
+                .set('user-id', userId)
+                .send({ stepName: 'test' }) // missing status
+                .expect(400);
+
+            await request(app)
+                .post(`/api/documents/${documentId}/processing-step`)
+                .set('user-id', userId)
+                .send({ status: 'completed' }) // missing stepName
+                .expect(400);
+        });
+
+        it('should get processing statistics', async () => {
+            const mockStats = {
+                pending: 5,
+                processing: 2,
+                completed: 10,
+                failed: 1,
+                total: 18
+            };
+
+            mockDocumentModel.getProcessingStats.mockResolvedValue(mockStats);
+
+            const response = await request(app)
+                .get('/api/documents/admin/stats')
+                .expect(200);
+
+            expect(response.body.success).toBe(true);
+            expect(response.body.data).toEqual(mockStats);
+            expect(mockDocumentModel.getProcessingStats).toHaveBeenCalled();
+        });
     });
 
-    it('should return 401 when user ID is missing', async () => {
-      const response = await request(app)
-        .post('/api/documents/upload')
-        .attach('document', Buffer.from('mock pdf content'), 'test.pdf')
-        .expect(401);
+    describe('Error Handling', () => {
+        it('should handle database errors gracefully', async () => {
+            const userId = 'test-user-123';
+            const documentId = 'test-doc-123';
 
-      expect(response.body.error).toBe('Unauthorized');
+            // Mock database error
+            mockDocumentModel.findByIdAndUser.mockRejectedValue(new Error('Database connection failed'));
+
+            await request(app)
+                .get(`/api/documents/${documentId}/status`)
+                .set('user-id', userId)
+                .expect(500);
+
+            // Mock update error
+            mockDocumentModel.findByIdAndUser.mockResolvedValue({
+                id: documentId,
+                user_id: userId,
+                original_name: 'test.pdf',
+                file_type: 'PDF',
+                file_size: 1024,
+                s3_path: 'documents/test.pdf',
+                processing_status: 'pending' as const,
+                upload_timestamp: new Date(),
+                metadata: {}
+            });
+            mockDocumentModel.updateStatus.mockRejectedValue(new Error('Update failed'));
+
+            await request(app)
+                .put(`/api/documents/${documentId}/status`)
+                .set('user-id', userId)
+                .send({ status: 'completed' })
+                .expect(500);
+        });
+
+        it('should handle metadata validation', async () => {
+            const userId = 'test-user-123';
+            const documentId = 'test-doc-123';
+
+            mockDocumentModel.findByIdAndUser.mockResolvedValue({
+                id: documentId,
+                user_id: userId,
+                original_name: 'test.pdf',
+                file_type: 'PDF',
+                file_size: 1024,
+                s3_path: 'documents/test.pdf',
+                processing_status: 'pending' as const,
+                upload_timestamp: new Date(),
+                metadata: {}
+            });
+
+            // Test invalid metadata types
+            await request(app)
+                .put(`/api/documents/${documentId}/metadata`)
+                .set('user-id', userId)
+                .send({ metadata: 'invalid-metadata' })
+                .expect(400);
+
+            await request(app)
+                .put(`/api/documents/${documentId}/metadata`)
+                .set('user-id', userId)
+                .send({ metadata: null })
+                .expect(400);
+
+            await request(app)
+                .put(`/api/documents/${documentId}/metadata`)
+                .set('user-id', userId)
+                .send({}) // missing metadata
+                .expect(400);
+        });
     });
-  });
-
-  describe('GET /api/documents/:id', () => {
-    it('should get document successfully', async () => {
-      const mockDocument = {
-        id: 'test-doc-id',
-        user_id: 'test-user-id',
-        original_name: 'test.pdf',
-        file_type: 'PDF',
-        file_size: 1024,
-        s3_path: 'documents/user/file.pdf',
-        processing_status: 'completed',
-        upload_timestamp: new Date(),
-        processed_timestamp: new Date(),
-        metadata: {}
-      };
-
-      (mysqlConnection.executeQuery as jest.Mock).mockResolvedValue([mockDocument]);
-      (s3Service.fileExists as jest.Mock).mockResolvedValue(true);
-      (s3Service.getSignedUrl as jest.Mock).mockResolvedValue('https://signed-url.com');
-
-      const response = await request(app)
-        .get('/api/documents/test-doc-id')
-        .set('user-id', 'test-user-id')
-        .expect(200);
-
-      expect(response.body.success).toBe(true);
-      expect(response.body.data).toMatchObject({
-        id: 'test-doc-id',
-        originalName: 'test.pdf',
-        downloadUrl: 'https://signed-url.com',
-      });
-    });
-
-    it('should return 404 when document not found', async () => {
-      (mysqlConnection.executeQuery as jest.Mock).mockResolvedValue([]);
-
-      const response = await request(app)
-        .get('/api/documents/nonexistent-id')
-        .set('user-id', 'test-user-id')
-        .expect(404);
-
-      expect(response.body.error).toBe('Document not found');
-    });
-  });
-
-  describe('DELETE /api/documents/:id', () => {
-    it('should delete document successfully', async () => {
-      const mockDocument = {
-        id: 'test-doc-id',
-        user_id: 'test-user-id',
-        s3_path: 'documents/user/file.pdf',
-        original_name: 'test.pdf'
-      };
-
-      (mysqlConnection.executeQuery as jest.Mock).mockResolvedValue([mockDocument]);
-      (mysqlConnection.executeTransaction as jest.Mock).mockImplementation(async (callback) => {
-        const mockConnection = {
-          execute: jest.fn().mockResolvedValue([{ affectedRows: 1 }, {}])
-        };
-        return await callback(mockConnection);
-      });
-      (s3Service.deleteFile as jest.Mock).mockResolvedValue(undefined);
-
-      const response = await request(app)
-        .delete('/api/documents/test-doc-id')
-        .set('user-id', 'test-user-id')
-        .expect(200);
-
-      expect(response.body.success).toBe(true);
-      expect(response.body.message).toBe('Document deleted successfully');
-    });
-
-    it('should return 404 when document not found', async () => {
-      (mysqlConnection.executeQuery as jest.Mock).mockResolvedValue([]);
-
-      const response = await request(app)
-        .delete('/api/documents/nonexistent-id')
-        .set('user-id', 'test-user-id')
-        .expect(404);
-
-      expect(response.body.error).toBe('Document not found');
-    });
-  });
-
-  describe('GET /api/documents', () => {
-    it('should list documents successfully', async () => {
-      const mockDocuments = [
-        {
-          id: 'doc-1',
-          original_name: 'test1.pdf',
-          file_type: 'PDF',
-          file_size: 1024,
-          processing_status: 'completed',
-          upload_timestamp: '2025-07-24T07:38:20.329Z',
-          processed_timestamp: '2025-07-24T07:38:20.329Z'
-        }
-      ];
-
-      (mysqlConnection.executeQuery as jest.Mock)
-        .mockResolvedValueOnce([{ total: 1 }])
-        .mockResolvedValueOnce(mockDocuments);
-
-      const response = await request(app)
-        .get('/api/documents')
-        .set('user-id', 'test-user-id')
-        .expect(200);
-
-      expect(response.body.success).toBe(true);
-      expect(response.body.data.documents).toEqual(mockDocuments);
-      expect(response.body.data.pagination).toMatchObject({
-        page: 1,
-        limit: 10,
-        total: 1,
-        totalPages: 1,
-      });
-    });
-
-    it('should return 401 when user ID is missing', async () => {
-      const response = await request(app)
-        .get('/api/documents')
-        .expect(401);
-
-      expect(response.body.error).toBe('Unauthorized');
-    });
-  });
 });

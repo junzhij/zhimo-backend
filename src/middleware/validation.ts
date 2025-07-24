@@ -2,6 +2,21 @@
 import { Request, Response, NextFunction } from 'express';
 import { createError } from './errorHandler';
 
+// Use require for express-validator due to CommonJS compatibility issues
+const { validationResult } = require('express-validator');
+
+// Middleware to handle express-validator validation results
+export const validateRequest = (req: Request, _res: Response, next: NextFunction): void => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    const errorMessage = errors.array()
+      .map((error: any) => error.msg)
+      .join(', ');
+    return next(createError(errorMessage, 400));
+  }
+  next();
+};
+
 export const validateFileUpload = (req: Request, _res: Response, next: NextFunction): void => {
   // Check if file exists in request (will be added by multer middleware in later tasks)
   const hasFile = (req as any).file || (req as any).files;

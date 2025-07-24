@@ -1,7 +1,9 @@
 import { Router } from 'express';
 import { notebookController } from '../controllers/notebookController';
 import { validateRequest } from '../middleware/validation';
-import { body, param, query } from 'express-validator';
+
+// Use require for express-validator due to CommonJS compatibility issues
+const { body, param, query } = require('express-validator');
 
 const router = Router();
 

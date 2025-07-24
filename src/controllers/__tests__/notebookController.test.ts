@@ -14,6 +14,17 @@ declare global {
   }
 }
 
+// Mock synthesis agent
+const mockSynthesisAgent = {
+  compileNotebook: jest.fn(),
+  generateFormattedText: jest.fn(),
+  getCompilationStats: jest.fn()
+};
+
+jest.mock('../../agents/synthesis', () => ({
+  synthesisAgent: mockSynthesisAgent
+}));
+
 // Mock dependencies
 jest.mock('../../models/notebookModel');
 jest.mock('../../models/annotationModel');
@@ -49,6 +60,11 @@ describe('NotebookController', () => {
     };
 
     jest.clearAllMocks();
+    
+    // Reset synthesis agent mocks
+    mockSynthesisAgent.compileNotebook.mockReset();
+    mockSynthesisAgent.generateFormattedText.mockReset();
+    mockSynthesisAgent.getCompilationStats.mockReset();
   });
 
   describe('createNotebook', () => {
@@ -589,12 +605,8 @@ describe('NotebookController', () => {
         includeSourceReferences: true
       };
 
-      // Mock the dynamic import
-      jest.doMock('../../../agents/synthesis', () => ({
-        synthesisAgent: {
-          compileNotebook: jest.fn().mockResolvedValueOnce(mockCompiledContent)
-        }
-      }));
+      // Setup mock
+      mockSynthesisAgent.compileNotebook.mockResolvedValueOnce(mockCompiledContent);
 
       await notebookController.compileNotebook(mockRequest as Request, mockResponse as Response);
 
@@ -608,12 +620,8 @@ describe('NotebookController', () => {
       mockRequest.params = { id: mockNotebookId };
       mockRequest.body = {};
 
-      // Mock the dynamic import
-      jest.doMock('../../../agents/synthesis', () => ({
-        synthesisAgent: {
-          compileNotebook: jest.fn().mockResolvedValueOnce(null)
-        }
-      }));
+      // Setup mock
+      mockSynthesisAgent.compileNotebook.mockResolvedValueOnce(null);
 
       await notebookController.compileNotebook(mockRequest as Request, mockResponse as Response);
 
@@ -650,13 +658,9 @@ describe('NotebookController', () => {
         formatStyle: 'structured'
       };
 
-      // Mock the dynamic import
-      jest.doMock('../../../agents/synthesis', () => ({
-        synthesisAgent: {
-          compileNotebook: jest.fn().mockResolvedValueOnce(mockCompiledContent),
-          generateFormattedText: jest.fn().mockReturnValueOnce(mockFormattedText)
-        }
-      }));
+      // Setup mocks
+      mockSynthesisAgent.compileNotebook.mockResolvedValueOnce(mockCompiledContent);
+      mockSynthesisAgent.generateFormattedText.mockReturnValueOnce(mockFormattedText);
 
       await notebookController.generateFormattedText(mockRequest as Request, mockResponse as Response);
 
@@ -683,12 +687,8 @@ describe('NotebookController', () => {
 
       mockRequest.params = { id: mockNotebookId };
 
-      // Mock the dynamic import
-      jest.doMock('../../../agents/synthesis', () => ({
-        synthesisAgent: {
-          getCompilationStats: jest.fn().mockResolvedValueOnce(mockStats)
-        }
-      }));
+      // Setup mock
+      mockSynthesisAgent.getCompilationStats.mockResolvedValueOnce(mockStats);
 
       await notebookController.getCompilationStats(mockRequest as Request, mockResponse as Response);
 
@@ -701,12 +701,8 @@ describe('NotebookController', () => {
     it('should return 404 when notebook not found for stats', async () => {
       mockRequest.params = { id: mockNotebookId };
 
-      // Mock the dynamic import
-      jest.doMock('../../../agents/synthesis', () => ({
-        synthesisAgent: {
-          getCompilationStats: jest.fn().mockResolvedValueOnce(null)
-        }
-      }));
+      // Setup mock
+      mockSynthesisAgent.getCompilationStats.mockResolvedValueOnce(null);
 
       await notebookController.getCompilationStats(mockRequest as Request, mockResponse as Response);
 

@@ -4,6 +4,15 @@ import { annotationModel } from '../models/annotationModel';
 import { mongoConnection } from '../database/mongodb';
 import { KnowledgeElement } from '../types';
 
+// Extend Request interface to include user property
+declare global {
+  namespace Express {
+    interface Request {
+      user?: { id: string };
+    }
+  }
+}
+
 export class NotebookController {
   /**
    * Create a new notebook
@@ -256,7 +265,17 @@ export class NotebookController {
       } else if (elementType === 'knowledge_element') {
         // Verify knowledge element exists
         const db = mongoConnection.getDb();
-        const knowledgeElement = await db.collection('knowledge_elements').findOne({ _id: elementId });
+        const { ObjectId } = await import('mongodb');
+        let query: any;
+        
+        // Try to create ObjectId, if it fails, use string query
+        try {
+          query = { _id: new ObjectId(elementId) };
+        } catch {
+          query = { _id: elementId };
+        }
+        
+        const knowledgeElement = await db.collection('knowledge_elements').findOne(query);
         if (!knowledgeElement) {
           res.status(404).json({ error: 'Knowledge element not found' });
           return;
@@ -483,6 +502,119 @@ export class NotebookController {
     } catch (error) {
       console.error('Error duplicating notebook:', error);
       res.status(500).json({ error: 'Failed to duplicate notebook' });
+    }
+  }
+
+  /**
+   * Compile notebook content using synthesis agent
+   */
+  async compileNotebook(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const { formatStyle, includeSourceReferences } = req.body;
+      const userId = req.user?.id;
+
+      if (!userId) {
+        res.status(401).json({ error: 'User not authenticated' });
+        return;
+      }
+
+      // Dynamic import to avoid circular dependency
+      const { synthesisAgent } = await import('../agents/synthesis');
+
+      const compiledContent = await synthesisAgent.compileNotebook(id, userId, {
+        formatStyle,
+        includeSourceReferences
+      });
+
+      if (!compiledContent) {
+        res.status(404).json({ error: 'Notebook not found' });
+        return;
+      }
+
+      res.json({
+        success: true,
+        data: compiledContent
+      });
+    } catch (error) {
+      console.error('Error compiling notebook:', error);
+      res.status(500).json({ error: 'Failed to compile notebook' });
+    }
+  }
+
+  /**
+   * Generate formatted text from notebook
+   */
+  async generateFormattedText(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const { formatStyle } = req.body;
+      const userId = req.user?.id;
+
+      if (!userId) {
+        res.status(401).json({ error: 'User not authenticated' });
+        return;
+      }
+
+      // Dynamic import to avoid circular dependency
+      const { synthesisAgent } = await import('../agents/synthesis');
+
+      const compiledContent = await synthesisAgent.compileNotebook(id, userId, {
+        formatStyle
+      });
+
+      if (!compiledContent) {
+        res.status(404).json({ error: 'Notebook not found' });
+        return;
+      }
+
+      const formattedText = synthesisAgent.generateFormattedText(compiledContent, {
+        formatStyle
+      });
+
+      res.json({
+        success: true,
+        data: {
+          formattedText,
+          metadata: compiledContent.metadata
+        }
+      });
+    } catch (error) {
+      console.error('Error generating formatted text:', error);
+      res.status(500).json({ error: 'Failed to generate formatted text' });
+    }
+  }
+
+  /**
+   * Get compilation statistics for notebook
+   */
+  async getCompilationStats(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const userId = req.user?.id;
+
+      if (!userId) {
+        res.status(401).json({ error: 'User not authenticated' });
+        return;
+      }
+
+      // Dynamic import to avoid circular dependency
+      const { synthesisAgent } = await import('../agents/synthesis');
+
+      const stats = await synthesisAgent.getCompilationStats(id, userId);
+
+      if (!stats) {
+        res.status(404).json({ error: 'Notebook not found' });
+        return;
+      }
+
+      res.json({
+        success: true,
+        data: stats
+      });
+    } catch (error) {
+      console.error('Error getting compilation stats:', error);
+      res.status(500).json({ error: 'Failed to get compilation statistics' });
     }
   }
 }

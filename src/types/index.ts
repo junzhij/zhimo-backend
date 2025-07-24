@@ -17,7 +17,7 @@ export interface KnowledgeElement {
   _id?: string;
   document_id: string;
   agent_type: 'analysis' | 'extraction' | 'pedagogy';
-  element_type: 'summary' | 'definition' | 'formula' | 'question' | 'topic' | 'entity';
+  element_type: 'summary' | 'definition' | 'formula' | 'question' | 'topic' | 'entity' | 'theme' | 'structure' | 'argument' | 'mindmap';
   content: {
     title: string;
     body: string;

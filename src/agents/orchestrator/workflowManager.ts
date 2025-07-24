@@ -70,8 +70,10 @@ export class WorkflowManager {
   private activeWorkflows: Map<string, WorkflowPlan> = new Map();
   private workflowInstructions: Map<string, UserInstruction> = new Map();
   private instructionParsers: Map<string, (instruction: UserInstruction) => WorkflowStep[]> = new Map();
+  private orchestratorAgent?: any;
 
-  constructor() {
+  constructor(orchestratorAgent?: any) {
+    this.orchestratorAgent = orchestratorAgent;
     this.initializeInstructionParsers();
   }
 
@@ -514,8 +516,8 @@ export class WorkflowManager {
           };
 
           // Submit task to orchestrator
-          const { orchestratorAgent } = await import('./index');
-          const taskId = await orchestratorAgent.submitTask(taskDefinition);
+          const orchestrator = this.orchestratorAgent || (await import('./index')).orchestratorAgent;
+          const taskId = await orchestrator.submitTask(taskDefinition);
           
           // Wait for task completion
           const result = await this.waitForTaskCompletion(taskId);
@@ -812,8 +814,8 @@ export class WorkflowManager {
             return;
           }
 
-          const { orchestratorAgent } = await import('./index');
-          const status = await orchestratorAgent.getTaskStatus(taskId);
+          const orchestrator = this.orchestratorAgent || (await import('./index')).orchestratorAgent;
+          const status = await orchestrator.getTaskStatus(taskId);
           
           switch (status.status) {
             case 'completed':

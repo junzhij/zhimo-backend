@@ -29,9 +29,6 @@ class MySQLConnection {
       database: config.mysql.database,
       connectionLimit: config.mysql.connectionLimit,
       queueLimit: 0,
-      acquireTimeout: 60000, // 60 seconds
-      timeout: 60000,
-      reconnect: true,
       idleTimeout: 300000, // 5 minutes
       // Enable automatic reconnection
       enableKeepAlive: true,

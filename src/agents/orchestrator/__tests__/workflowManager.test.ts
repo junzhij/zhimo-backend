@@ -16,8 +16,8 @@ describe('WorkflowManager', () => {
   let mockOrchestrator: jest.Mocked<typeof orchestratorAgent>;
 
   beforeEach(() => {
-    workflowManager = new WorkflowManager();
     mockOrchestrator = orchestratorAgent as jest.Mocked<typeof orchestratorAgent>;
+    workflowManager = new WorkflowManager(mockOrchestrator);
     jest.clearAllMocks();
   });
 
@@ -254,7 +254,13 @@ describe('WorkflowManager', () => {
         },
       });
 
-      await expect(workflowManager.processUserInstruction(instruction)).rejects.toThrow();
+      const workflowId = await workflowManager.processUserInstruction(instruction);
+      
+      // Wait for workflow to complete/fail
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      const workflow = workflowManager.getWorkflowStatus(workflowId);
+      expect(workflow?.status).toBe('failed');
     });
   });
 

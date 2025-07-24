@@ -271,4 +271,11 @@ router.post('/:id/format', validateUUID, notebookController.generateFormattedTex
  */
 router.get('/:id/stats', validateUUID, notebookController.getCompilationStats);
 
+/**
+ * @route POST /api/notebooks/:id/export
+ * @desc Export notebook to PDF
+ * @access Private
+ */
+router.post('/:id/export', validateUUID, notebookController.exportToPDF);
+
 export default router;

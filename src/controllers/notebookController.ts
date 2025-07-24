@@ -617,6 +617,122 @@ export class NotebookController {
       res.status(500).json({ error: 'Failed to get compilation statistics' });
     }
   }
+
+  /**
+   * Export notebook to PDF
+   */
+  async exportToPDF(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const userId = req.user?.id;
+
+      if (!userId) {
+        res.status(401).json({ error: 'User not authenticated' });
+        return;
+      }
+
+      const {
+        // Compilation options
+        formatStyle = 'structured',
+        includeSourceReferences = true,
+        includeMetadata = true,
+        
+        // PDF options
+        template = 'academic',
+        pageSize = 'A4',
+        orientation = 'portrait',
+        includeTableOfContents = true,
+        includePageNumbers = true,
+        fontSize = 'medium',
+        headerText,
+        footerText,
+        margins = {
+          top: '1in',
+          right: '1in',
+          bottom: '1in',
+          left: '1in'
+        }
+      } = req.body;
+
+      // Validate template option
+      const validTemplates = ['academic', 'modern', 'minimal', 'report'];
+      if (!validTemplates.includes(template)) {
+        res.status(400).json({ 
+          error: `Invalid template. Must be one of: ${validTemplates.join(', ')}` 
+        });
+        return;
+      }
+
+      // Validate page size
+      const validPageSizes = ['A4', 'Letter', 'Legal'];
+      if (!validPageSizes.includes(pageSize)) {
+        res.status(400).json({ 
+          error: `Invalid page size. Must be one of: ${validPageSizes.join(', ')}` 
+        });
+        return;
+      }
+
+      // Validate orientation
+      const validOrientations = ['portrait', 'landscape'];
+      if (!validOrientations.includes(orientation)) {
+        res.status(400).json({ 
+          error: `Invalid orientation. Must be one of: ${validOrientations.join(', ')}` 
+        });
+        return;
+      }
+
+      // Validate font size
+      const validFontSizes = ['small', 'medium', 'large'];
+      if (!validFontSizes.includes(fontSize)) {
+        res.status(400).json({ 
+          error: `Invalid font size. Must be one of: ${validFontSizes.join(', ')}` 
+        });
+        return;
+      }
+
+      // Dynamic import to avoid circular dependency
+      const { synthesisAgent } = await import('../agents/synthesis');
+
+      const pdfResult = await synthesisAgent.exportToPDF(
+        id,
+        userId,
+        {
+          formatStyle,
+          includeSourceReferences,
+          includeMetadata,
+          sectionSeparator: '\n\n---\n\n'
+        },
+        {
+          template,
+          pageSize,
+          orientation,
+          includeTableOfContents,
+          includePageNumbers,
+          fontSize,
+          headerText,
+          footerText,
+          margins
+        }
+      );
+
+      if (!pdfResult) {
+        res.status(404).json({ error: 'Notebook not found or failed to generate PDF' });
+        return;
+      }
+
+      // Set response headers for PDF download
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${pdfResult.filename}"`);
+      res.setHeader('Content-Length', pdfResult.buffer.length);
+
+      // Send the PDF buffer
+      res.send(pdfResult.buffer);
+
+    } catch (error) {
+      console.error('Error exporting notebook to PDF:', error);
+      res.status(500).json({ error: 'Failed to export notebook to PDF' });
+    }
+  }
 }
 
 export const notebookController = new NotebookController();

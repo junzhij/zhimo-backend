@@ -18,7 +18,8 @@ declare global {
 const mockSynthesisAgent = {
   compileNotebook: jest.fn(),
   generateFormattedText: jest.fn(),
-  getCompilationStats: jest.fn()
+  getCompilationStats: jest.fn(),
+  exportToPDF: jest.fn()
 };
 
 jest.mock('../../agents/synthesis', () => ({
@@ -708,6 +709,140 @@ describe('NotebookController', () => {
 
       expect(mockStatus).toHaveBeenCalledWith(404);
       expect(mockJson).toHaveBeenCalledWith({ error: 'Notebook not found' });
+    });
+  });
+
+  describe('exportToPDF', () => {
+    let mockSend: jest.Mock;
+    let mockSetHeader: jest.Mock;
+
+    beforeEach(() => {
+      mockSend = jest.fn();
+      mockSetHeader = jest.fn();
+      mockResponse.send = mockSend;
+      mockResponse.setHeader = mockSetHeader;
+    });
+
+    it('should export notebook to PDF successfully', async () => {
+      const mockPDFResult = {
+        buffer: Buffer.from('mock-pdf-content'),
+        filename: 'Test_Notebook_2023-12-01.pdf',
+        metadata: {
+          title: 'Test Notebook',
+          pageCount: 5,
+          generatedAt: new Date(),
+          template: 'academic',
+          fileSize: 1024
+        }
+      };
+
+      mockRequest.params = { id: mockNotebookId };
+      mockRequest.body = {
+        template: 'academic',
+        pageSize: 'A4',
+        orientation: 'portrait',
+        includeTableOfContents: true,
+        includePageNumbers: true,
+        fontSize: 'medium'
+      };
+
+      // Setup mock
+      mockSynthesisAgent.exportToPDF = jest.fn().mockResolvedValueOnce(mockPDFResult);
+
+      await notebookController.exportToPDF(mockRequest as Request, mockResponse as Response);
+
+      expect(mockSetHeader).toHaveBeenCalledWith('Content-Type', 'application/pdf');
+      expect(mockSetHeader).toHaveBeenCalledWith('Content-Disposition', `attachment; filename="${mockPDFResult.filename}"`);
+      expect(mockSetHeader).toHaveBeenCalledWith('Content-Length', mockPDFResult.buffer.length);
+      expect(mockSend).toHaveBeenCalledWith(mockPDFResult.buffer);
+    });
+
+    it('should return 404 when notebook not found for PDF export', async () => {
+      mockRequest.params = { id: mockNotebookId };
+      mockRequest.body = {};
+
+      // Setup mock
+      mockSynthesisAgent.exportToPDF = jest.fn().mockResolvedValueOnce(null);
+
+      await notebookController.exportToPDF(mockRequest as Request, mockResponse as Response);
+
+      expect(mockStatus).toHaveBeenCalledWith(404);
+      expect(mockJson).toHaveBeenCalledWith({ error: 'Notebook not found or failed to generate PDF' });
+    });
+
+    it('should return 400 for invalid template', async () => {
+      mockRequest.params = { id: mockNotebookId };
+      mockRequest.body = {
+        template: 'invalid-template'
+      };
+
+      await notebookController.exportToPDF(mockRequest as Request, mockResponse as Response);
+
+      expect(mockStatus).toHaveBeenCalledWith(400);
+      expect(mockJson).toHaveBeenCalledWith({ 
+        error: 'Invalid template. Must be one of: academic, modern, minimal, report' 
+      });
+    });
+
+    it('should return 400 for invalid page size', async () => {
+      mockRequest.params = { id: mockNotebookId };
+      mockRequest.body = {
+        template: 'academic',
+        pageSize: 'invalid-size'
+      };
+
+      await notebookController.exportToPDF(mockRequest as Request, mockResponse as Response);
+
+      expect(mockStatus).toHaveBeenCalledWith(400);
+      expect(mockJson).toHaveBeenCalledWith({ 
+        error: 'Invalid page size. Must be one of: A4, Letter, Legal' 
+      });
+    });
+
+    it('should return 400 for invalid orientation', async () => {
+      mockRequest.params = { id: mockNotebookId };
+      mockRequest.body = {
+        template: 'academic',
+        pageSize: 'A4',
+        orientation: 'invalid-orientation'
+      };
+
+      await notebookController.exportToPDF(mockRequest as Request, mockResponse as Response);
+
+      expect(mockStatus).toHaveBeenCalledWith(400);
+      expect(mockJson).toHaveBeenCalledWith({ 
+        error: 'Invalid orientation. Must be one of: portrait, landscape' 
+      });
+    });
+
+    it('should return 400 for invalid font size', async () => {
+      mockRequest.params = { id: mockNotebookId };
+      mockRequest.body = {
+        template: 'academic',
+        pageSize: 'A4',
+        orientation: 'portrait',
+        fontSize: 'invalid-size'
+      };
+
+      await notebookController.exportToPDF(mockRequest as Request, mockResponse as Response);
+
+      expect(mockStatus).toHaveBeenCalledWith(400);
+      expect(mockJson).toHaveBeenCalledWith({ 
+        error: 'Invalid font size. Must be one of: small, medium, large' 
+      });
+    });
+
+    it('should handle PDF export errors', async () => {
+      mockRequest.params = { id: mockNotebookId };
+      mockRequest.body = {};
+
+      // Setup mock to throw error
+      mockSynthesisAgent.exportToPDF = jest.fn().mockRejectedValueOnce(new Error('PDF generation failed'));
+
+      await notebookController.exportToPDF(mockRequest as Request, mockResponse as Response);
+
+      expect(mockStatus).toHaveBeenCalledWith(500);
+      expect(mockJson).toHaveBeenCalledWith({ error: 'Failed to export notebook to PDF' });
     });
   });
 });

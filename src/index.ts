@@ -54,8 +54,10 @@ app.get('/health', async (_req, res) => {
 import documentRoutes from './routes/documents';
 import annotationRoutes from './routes/annotations';
 import notebookRoutes from './routes/notebooks';
+import authRoutes from './routes/auth';
 
 // API routes
+app.use('/api/auth', authRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/annotations', annotationRoutes);
 app.use('/api/notebooks', notebookRoutes);

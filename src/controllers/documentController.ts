@@ -2,13 +2,12 @@ import { Request, Response } from 'express';
 import { s3Service } from '../services/s3Service';
 import { FileUploadResponse, Document } from '../types';
 import { documentModel, ProcessingStatus } from '../models/documentModel';
+import { User } from '../models/userModel';
 import path from 'path';
 
-// Extend Request interface to include user property
+// Use the global Request interface extension that includes User
 interface AuthenticatedRequest extends Request {
-  user?: {
-    id: string;
-  };
+  user?: User;
 }
 
 export class DocumentController {
@@ -107,12 +106,12 @@ export class DocumentController {
   async getDocument(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
-      const userId = req.headers['user-id'] as string;
+      const userId = req.user?.id;
 
       if (!userId) {
         res.status(401).json({
           error: 'Unauthorized',
-          message: 'User ID is required'
+          message: 'User authentication required'
         });
         return;
       }
@@ -173,12 +172,12 @@ export class DocumentController {
   async deleteDocument(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
-      const userId = req.headers['user-id'] as string;
+      const userId = req.user?.id;
 
       if (!userId) {
         res.status(401).json({
           error: 'Unauthorized',
-          message: 'User ID is required'
+          message: 'User authentication required'
         });
         return;
       }
@@ -241,7 +240,7 @@ export class DocumentController {
    */
   async listDocuments(req: Request, res: Response): Promise<void> {
     try {
-      const userId = req.headers['user-id'] as string;
+      const userId = req.user?.id;
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 10;
       const status = req.query.status as string;
@@ -249,7 +248,7 @@ export class DocumentController {
       if (!userId) {
         res.status(401).json({
           error: 'Unauthorized',
-          message: 'User ID is required'
+          message: 'User authentication required'
         });
         return;
       }
@@ -311,12 +310,12 @@ export class DocumentController {
     try {
       const { id } = req.params;
       const { status, processedTimestamp } = req.body;
-      const userId = req.headers['user-id'] as string;
+      const userId = req.user?.id;
 
       if (!userId) {
         res.status(401).json({
           error: 'Unauthorized',
-          message: 'User ID is required'
+          message: 'User authentication required'
         });
         return;
       }
@@ -379,12 +378,12 @@ export class DocumentController {
   async getProcessingStatus(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
-      const userId = req.headers['user-id'] as string;
+      const userId = req.user?.id;
 
       if (!userId) {
         res.status(401).json({
           error: 'Unauthorized',
-          message: 'User ID is required'
+          message: 'User authentication required'
         });
         return;
       }
@@ -429,12 +428,12 @@ export class DocumentController {
     try {
       const { id } = req.params;
       const { metadata } = req.body;
-      const userId = req.headers['user-id'] as string;
+      const userId = req.user?.id;
 
       if (!userId) {
         res.status(401).json({
           error: 'Unauthorized',
-          message: 'User ID is required'
+          message: 'User authentication required'
         });
         return;
       }
@@ -494,12 +493,12 @@ export class DocumentController {
     try {
       const { id } = req.params;
       const { stepName, status, error } = req.body;
-      const userId = req.headers['user-id'] as string;
+      const userId = req.user?.id;
 
       if (!userId) {
         res.status(401).json({
           error: 'Unauthorized',
-          message: 'User ID is required'
+          message: 'User authentication required'
         });
         return;
       }

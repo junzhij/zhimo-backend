@@ -1,12 +1,11 @@
 import { Request, Response } from 'express';
 import { annotationModel, AnnotationType, CreateAnnotationData, UpdateAnnotationData } from '../models/annotationModel';
 import { documentModel } from '../models/documentModel';
+import { User } from '../models/userModel';
 
-// Extend Request interface to include user property
+// Use the global Request interface extension that includes User
 interface AuthenticatedRequest extends Request {
-  user?: {
-    id: string;
-  };
+  user?: User;
 }
 
 export class AnnotationController {
@@ -15,7 +14,7 @@ export class AnnotationController {
    */
   async createAnnotation(req: AuthenticatedRequest, res: Response): Promise<void> {
     try {
-      const userId = req.user?.id || req.headers['user-id'] as string;
+      const userId = req.user?.id;
       
       if (!userId) {
         res.status(401).json({

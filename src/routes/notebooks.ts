@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { notebookController } from '../controllers/notebookController';
 import { validateRequest } from '../middleware/validation';
+import { authenticateToken } from '../middleware/auth';
 
 // Use require for express-validator due to CommonJS compatibility issues
 const { body, param, query } = require('express-validator');
@@ -164,118 +165,118 @@ const validateDuplicate = [
  * @desc Create a new notebook
  * @access Private
  */
-router.post('/', validateCreateNotebook, notebookController.createNotebook);
+router.post('/', authenticateToken, validateCreateNotebook, notebookController.createNotebook);
 
 /**
  * @route GET /api/notebooks
  * @desc Get user's notebooks with pagination
  * @access Private
  */
-router.get('/', validatePagination, notebookController.getUserNotebooks);
+router.get('/', authenticateToken, validatePagination, notebookController.getUserNotebooks);
 
 /**
  * @route GET /api/notebooks/search
  * @desc Search notebooks by title
  * @access Private
  */
-router.get('/search', validateSearch, notebookController.searchNotebooks);
+router.get('/search', authenticateToken, validateSearch, notebookController.searchNotebooks);
 
 /**
  * @route GET /api/notebooks/stats
  * @desc Get notebook statistics for the user
  * @access Private
  */
-router.get('/stats', notebookController.getNotebookStats);
+router.get('/stats', authenticateToken, notebookController.getNotebookStats);
 
 /**
  * @route GET /api/notebooks/:id
  * @desc Get notebook by ID
  * @access Private
  */
-router.get('/:id', validateUUID, notebookController.getNotebook);
+router.get('/:id', authenticateToken, validateUUID, notebookController.getNotebook);
 
 /**
  * @route GET /api/notebooks/:id/composition
  * @desc Get notebook with its composition
  * @access Private
  */
-router.get('/:id/composition', validateUUID, notebookController.getNotebookWithComposition);
+router.get('/:id/composition', authenticateToken, validateUUID, notebookController.getNotebookWithComposition);
 
 /**
  * @route PUT /api/notebooks/:id
  * @desc Update notebook
  * @access Private
  */
-router.put('/:id', validateUUID, validateUpdateNotebook, notebookController.updateNotebook);
+router.put('/:id', authenticateToken, validateUUID, validateUpdateNotebook, notebookController.updateNotebook);
 
 /**
  * @route DELETE /api/notebooks/:id
  * @desc Delete notebook
  * @access Private
  */
-router.delete('/:id', validateUUID, notebookController.deleteNotebook);
+router.delete('/:id', authenticateToken, validateUUID, notebookController.deleteNotebook);
 
 /**
  * @route POST /api/notebooks/:id/duplicate
  * @desc Duplicate notebook with new title
  * @access Private
  */
-router.post('/:id/duplicate', validateUUID, validateDuplicate, notebookController.duplicateNotebook);
+router.post('/:id/duplicate', authenticateToken, validateUUID, validateDuplicate, notebookController.duplicateNotebook);
 
 /**
  * @route POST /api/notebooks/:id/composition
  * @desc Add element to notebook composition
  * @access Private
  */
-router.post('/:id/composition', validateUUID, validateCompositionItem, notebookController.addCompositionItem);
+router.post('/:id/composition', authenticateToken, validateUUID, validateCompositionItem, notebookController.addCompositionItem);
 
 /**
  * @route PUT /api/notebooks/:id/composition/order
  * @desc Update composition order
  * @access Private
  */
-router.put('/:id/composition/order', validateUUID, validateCompositionOrder, notebookController.updateCompositionOrder);
+router.put('/:id/composition/order', authenticateToken, validateUUID, validateCompositionOrder, notebookController.updateCompositionOrder);
 
 /**
  * @route GET /api/notebooks/:id/composition/items
  * @desc Get notebook composition items
  * @access Private
  */
-router.get('/:id/composition/items', validateUUID, notebookController.getComposition);
+router.get('/:id/composition/items', authenticateToken, validateUUID, notebookController.getComposition);
 
 /**
  * @route DELETE /api/notebooks/:id/composition/:compositionId
  * @desc Remove composition item
  * @access Private
  */
-router.delete('/:id/composition/:compositionId', validateCompositionUUID, notebookController.removeCompositionItem);
+router.delete('/:id/composition/:compositionId', authenticateToken, validateCompositionUUID, notebookController.removeCompositionItem);
 
 /**
  * @route POST /api/notebooks/:id/compile
  * @desc Compile notebook content
  * @access Private
  */
-router.post('/:id/compile', validateUUID, notebookController.compileNotebook);
+router.post('/:id/compile', authenticateToken, validateUUID, notebookController.compileNotebook);
 
 /**
  * @route POST /api/notebooks/:id/format
  * @desc Generate formatted text from notebook
  * @access Private
  */
-router.post('/:id/format', validateUUID, notebookController.generateFormattedText);
+router.post('/:id/format', authenticateToken, validateUUID, notebookController.generateFormattedText);
 
 /**
  * @route GET /api/notebooks/:id/stats
  * @desc Get compilation statistics
  * @access Private
  */
-router.get('/:id/stats', validateUUID, notebookController.getCompilationStats);
+router.get('/:id/stats', authenticateToken, validateUUID, notebookController.getCompilationStats);
 
 /**
  * @route POST /api/notebooks/:id/export
  * @desc Export notebook to PDF
  * @access Private
  */
-router.post('/:id/export', validateUUID, notebookController.exportToPDF);
+router.post('/:id/export', authenticateToken, validateUUID, notebookController.exportToPDF);
 
 export default router;

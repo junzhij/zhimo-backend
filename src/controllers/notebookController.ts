@@ -3,12 +3,13 @@ import { notebookModel, CreateNotebookData, UpdateNotebookData, NotebookComposit
 import { annotationModel } from '../models/annotationModel';
 import { mongoConnection } from '../database/mongodb';
 import { KnowledgeElement } from '../types';
+import { User } from '../models/userModel';
 
 // Extend Request interface to include user property
 declare global {
   namespace Express {
     interface Request {
-      user?: { id: string };
+      user?: User;
     }
   }
 }

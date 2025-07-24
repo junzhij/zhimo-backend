@@ -32,6 +32,34 @@ export interface KnowledgeElement {
   tags: string[];
 }
 
+export interface StructuredText {
+  title: string;
+  sections: Array<{
+    heading: string;
+    content: string;
+    subsections?: Array<{
+      heading: string;
+      content: string;
+    }>;
+  }>;
+  metadata: {
+    wordCount: number;
+    pageCount?: number;
+    language?: string;
+    [key: string]: any;
+  };
+}
+
+export interface SummaryRequest {
+  documentId: string;
+  structuredText: StructuredText;
+  options: {
+    length: 'short' | 'medium' | 'long';
+    style: 'extractive' | 'abstractive' | 'bullet-points' | 'academic';
+    focus?: string;
+  };
+}
+
 export interface Annotation {
   id: string;
   user_id: string;

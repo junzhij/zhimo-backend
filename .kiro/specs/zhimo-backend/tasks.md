@@ -54,20 +54,20 @@
   - Add document metadata storage and retrieval
   - _Requirements: 1.5, 2.5_
 
-- [ ] 4. Implement Orchestrator Agent core functionality
+- [-] 4. Implement Orchestrator Agent core functionality
 - [ ] 4.1 Create agent communication framework
   - Implement message queue system for agent coordination
   - Create agent registration and discovery mechanism
   - Build task distribution and monitoring system
   - _Requirements: 6.1, 6.2, 6.3_
 
-- [ ] 4.2 Build task planning and workflow management
+- [x] 4.2 Build task planning and workflow management
   - Implement user instruction parsing and task decomposition
   - Create workflow orchestration logic for agent coordination
   - Add dependency management between agent tasks
   - _Requirements: 2.1, 6.2_
 
-- [ ] 4.3 Implement processing status tracking and error handling
+- [x] 4.3 Implement processing status tracking and error handling
   - Create processing status API endpoints
   - Implement retry logic for failed agent tasks
   - Add comprehensive error logging and user notifications
@@ -77,7 +77,7 @@
 - [ ] 5.1 Implement PDF text extraction
   - Create PDF parser using pdf-parse or similar library
   - Extract text content while preserving structure
-  - Handle encrypted and image-based PDFs
+  - Handle image-based PDFs: use OCR service to transform it into plain txt.
   - _Requirements: 1.1, 2.2_
 
 - [ ] 5.2 Add Word and PowerPoint document processing
@@ -99,7 +99,7 @@
   - _Requirements: 2.2, 2.5_
 
 - [ ] 6. Implement Analysis Agent for content analysis
-- [ ] 6.1 Build summary generation functionality
+- [x] 6.1 Build summary generation functionality
   - Create text summarization using AI/ML models
   - Support different summary lengths and styles
   - Implement extractive and abstractive summarization

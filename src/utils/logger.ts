@@ -18,3 +18,6 @@ export class Logger {
     }
   }
 }
+
+// Export singleton instance for easier usage
+export const logger = new Logger();

@@ -171,7 +171,7 @@ class RedisConnection {
     if (!value) return null;
 
     try {
-      return JSON.parse(value) as T;
+      return JSON.parse(value.toString()) as T;
     } catch (error) {
       console.error('Error parsing cached value:', error);
       return null;
@@ -212,13 +212,13 @@ class RedisConnection {
       // Try priority queue first
       const priorityResult = await this.client.zPopMax(queueName);
       if (priorityResult) {
-        return JSON.parse(priorityResult.value) as AgentMessage;
+        return JSON.parse(priorityResult.value.toString()) as AgentMessage;
       }
 
       // Fall back to regular queue with blocking pop
       const result = await this.client.blPop(queueName, timeout);
       if (result) {
-        return JSON.parse(result.element) as AgentMessage;
+        return JSON.parse(result.element.toString()) as AgentMessage;
       }
 
       return null;
@@ -234,7 +234,7 @@ class RedisConnection {
       this.client.lLen(queueName),
       this.client.zCard(queueName),
     ]);
-    return listLength + zsetLength;
+    return Number(listLength) + Number(zsetLength);
   }
 
   async moveToDeadLetter(message: AgentMessage): Promise<void> {

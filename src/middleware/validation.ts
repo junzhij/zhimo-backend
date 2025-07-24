@@ -50,3 +50,69 @@ export const validatePagination = (req: Request, _res: Response, next: NextFunct
   (req as any).pagination = { page: pageNum, limit: limitNum };
   next();
 };
+
+// Orchestrator-specific validation middleware
+
+export const validateWorkflowId = (req: Request, _res: Response, next: NextFunction): void => {
+  const { workflowId } = req.params;
+  
+  if (!workflowId || typeof workflowId !== 'string' || workflowId.trim().length === 0) {
+    return next(createError('Invalid workflow ID', 400));
+  }
+  
+  next();
+};
+
+export const validateTaskId = (req: Request, _res: Response, next: NextFunction): void => {
+  const { taskId } = req.params;
+  
+  if (!taskId || typeof taskId !== 'string' || taskId.trim().length === 0) {
+    return next(createError('Invalid task ID', 400));
+  }
+  
+  next();
+};
+
+export const validateUserInstruction = (req: Request, _res: Response, next: NextFunction): void => {
+  const { instruction, documentId } = req.body;
+  
+  if (!instruction || typeof instruction !== 'string' || instruction.trim().length === 0) {
+    return next(createError('Instruction is required', 400));
+  }
+  
+  if (!documentId || typeof documentId !== 'string' || documentId.trim().length === 0) {
+    return next(createError('Document ID is required', 400));
+  }
+  
+  // Validate options if provided
+  if (req.body.options) {
+    const { options } = req.body;
+    
+    if (options.summaryLength && !['short', 'medium', 'long'].includes(options.summaryLength)) {
+      return next(createError('Invalid summary length', 400));
+    }
+    
+    if (options.questionTypes && !Array.isArray(options.questionTypes)) {
+      return next(createError('Question types must be an array', 400));
+    }
+    
+    if (options.questionTypes) {
+      const validTypes = ['multiple_choice', 'fill_blank', 'short_answer', 'essay'];
+      const invalidTypes = options.questionTypes.filter((type: string) => !validTypes.includes(type));
+      
+      if (invalidTypes.length > 0) {
+        return next(createError(`Invalid question types: ${invalidTypes.join(', ')}`, 400));
+      }
+    }
+  }
+  
+  // Validate priority if provided
+  if (req.body.priority !== undefined) {
+    const priority = parseInt(req.body.priority, 10);
+    if (isNaN(priority) || priority < 1 || priority > 10) {
+      return next(createError('Priority must be between 1 and 10', 400));
+    }
+  }
+  
+  next();
+};

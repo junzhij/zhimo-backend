@@ -1,0 +1,52 @@
+// Request validation middleware
+import { Request, Response, NextFunction } from 'express';
+import { createError } from './errorHandler';
+
+export const validateFileUpload = (req: Request, _res: Response, next: NextFunction): void => {
+  // Check if file exists in request (will be added by multer middleware in later tasks)
+  const hasFile = (req as any).file || (req as any).files;
+  if (!hasFile) {
+    return next(createError('No file uploaded', 400));
+  }
+  next();
+};
+
+export const validateDocumentId = (req: Request, _res: Response, next: NextFunction): void => {
+  const { id } = req.params;
+  
+  if (!id || typeof id !== 'string' || id.trim().length === 0) {
+    return next(createError('Invalid document ID', 400));
+  }
+  
+  next();
+};
+
+export const validateUserId = (req: Request, _res: Response, next: NextFunction): void => {
+  const userId = req.headers['user-id'] as string;
+  
+  if (!userId || typeof userId !== 'string' || userId.trim().length === 0) {
+    return next(createError('User ID is required', 401));
+  }
+  
+  // Add user ID to request for later use
+  (req as any).userId = userId;
+  next();
+};
+
+export const validatePagination = (req: Request, _res: Response, next: NextFunction): void => {
+  const { page = '1', limit = '10' } = req.query;
+  
+  const pageNum = parseInt(page as string, 10);
+  const limitNum = parseInt(limit as string, 10);
+  
+  if (isNaN(pageNum) || pageNum < 1) {
+    return next(createError('Invalid page number', 400));
+  }
+  
+  if (isNaN(limitNum) || limitNum < 1 || limitNum > 100) {
+    return next(createError('Invalid limit (must be between 1 and 100)', 400));
+  }
+  
+  (req as any).pagination = { page: pageNum, limit: limitNum };
+  next();
+};

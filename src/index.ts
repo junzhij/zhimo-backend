@@ -53,10 +53,12 @@ app.get('/health', async (_req, res) => {
 // Import routes
 import documentRoutes from './routes/documents';
 import annotationRoutes from './routes/annotations';
+import notebookRoutes from './routes/notebooks';
 
 // API routes
 app.use('/api/documents', documentRoutes);
 app.use('/api/annotations', annotationRoutes);
+app.use('/api/notebooks', notebookRoutes);
 
 // Catch-all for unimplemented API routes
 app.use('/api', (_req, res) => {

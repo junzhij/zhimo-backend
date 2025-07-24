@@ -23,6 +23,7 @@ class MigrationRunner {
       require('./002_create_annotations_table').default,
       require('./003_create_review_notebooks_table').default,
       require('./004_create_notebook_composition_table').default,
+      require('./005_add_tags_to_annotations').default,
     ];
   }
 

@@ -5,6 +5,7 @@ export interface Document {
   user_id: string;
   original_name: string;
   file_type: string;
+  file_size: number;
   s3_path: string;
   processing_status: 'pending' | 'processing' | 'completed' | 'failed';
   upload_timestamp: Date;

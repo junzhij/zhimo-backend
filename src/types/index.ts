@@ -69,3 +69,24 @@ export interface AgentTask {
   completed_at?: Date;
   error_message?: string;
 }
+
+export interface FileUploadRequest {
+  userId: string;
+  file: Express.Multer.File;
+}
+
+export interface FileUploadResponse {
+  documentId: string;
+  originalName: string;
+  fileType: string;
+  s3Path: string;
+  uploadTimestamp: Date;
+  processingStatus: string;
+}
+
+export interface S3UploadResult {
+  key: string;
+  location: string;
+  bucket: string;
+  etag: string;
+}

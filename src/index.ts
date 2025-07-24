@@ -50,9 +50,15 @@ app.get('/health', async (_req, res) => {
   }
 });
 
-// API routes will be added in later tasks
+// Import routes
+import documentRoutes from './routes/documents';
+
+// API routes
+app.use('/api/documents', documentRoutes);
+
+// Catch-all for unimplemented API routes
 app.use('/api', (_req, res) => {
-  res.status(404).json({ error: 'API endpoints not yet implemented' });
+  res.status(404).json({ error: 'API endpoint not found' });
 });
 
 // Global error handler

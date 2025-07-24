@@ -34,14 +34,14 @@
   - _Requirements: 6.1, 6.3_
 
 - [ ] 3. Build file upload and storage infrastructure
-- [ ] 3.1 Implement S3 file upload service
+- [x] 3.1 Implement S3 file upload service
   - Create S3 client configuration with proper credentials
   - Implement secure file upload with validation
   - Add support for multiple file formats (PDF, Word, PPT, images)
   - Generate unique file paths and handle upload errors
   - _Requirements: 1.1, 1.2, 1.3_
 
-- [ ] 3.2 Create document management API endpoints
+- [-] 3.2 Create document management API endpoints
   - Implement POST /api/documents/upload endpoint
   - Create GET /api/documents/:id for document retrieval
   - Add DELETE /api/documents/:id for document removal

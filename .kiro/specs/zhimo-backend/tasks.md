@@ -117,26 +117,26 @@
   - Identify argument flow and conclusions
   - _Requirements: 2.3, 4.3_
 
-- [ ] 7. Build Knowledge Extraction Agent
-- [ ] 7.1 Implement named entity recognition (NER)
+- [x] 7. Build Knowledge Extraction Agent
+- [x] 7.1 Implement named entity recognition (NER)
   - Create entity extraction for terms, names, dates
   - Classify entities by type and importance
   - Store entities with source location references
   - _Requirements: 2.4, 4.1_
 
-- [ ] 7.2 Add definition and concept extraction
+- [x] 7.2 Add definition and concept extraction
   - Identify key terms and their definitions
   - Extract concept explanations and descriptions
   - Create term-definition pairs for flashcards
   - _Requirements: 2.4, 4.1_
 
-- [ ] 7.3 Implement formula and theorem extraction
+- [x] 7.3 Implement formula and theorem extraction
   - Detect mathematical formulas and equations
   - Extract scientific theorems and laws
   - Preserve formula formatting and context
   - _Requirements: 2.4, 4.2_
 
-- [ ] 7.4 Create relationship extraction between entities
+- [x] 7.4 Create relationship extraction between entities
   - Identify connections between extracted entities
   - Build knowledge graphs from relationships
   - Store relationship data for visualization

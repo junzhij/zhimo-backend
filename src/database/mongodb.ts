@@ -6,7 +6,7 @@ export interface KnowledgeElement {
   _id?: string;
   document_id: string;
   agent_type: 'analysis' | 'extraction' | 'pedagogy';
-  element_type: 'summary' | 'definition' | 'formula' | 'question' | 'entity' | 'topic' | 'flashcard';
+  element_type: 'summary' | 'definition' | 'formula' | 'question' | 'entity' | 'topic' | 'flashcard' | 'concept' | 'theorem' | 'relationship';
   content: {
     title: string;
     body: string;

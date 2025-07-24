@@ -49,6 +49,20 @@ router.get('/:id/status',
   asyncHandler(documentController.getProcessingStatus.bind(documentController))
 );
 
+// Start document processing
+router.post('/:id/process', 
+  authenticateToken,
+  validateDocumentId,
+  asyncHandler(documentController.processDocument.bind(documentController))
+);
+
+// Cancel document processing
+router.post('/:id/cancel', 
+  authenticateToken,
+  validateDocumentId,
+  asyncHandler(documentController.cancelProcessing.bind(documentController))
+);
+
 // Update document metadata
 router.put('/:id/metadata', 
   authenticateToken,

@@ -98,7 +98,7 @@ export class AnnotationController {
    */
   async getAnnotation(req: Request, res: Response): Promise<void> {
     try {
-      const userId = req.headers['user-id'] as string;
+      const userId = req.user?.id;
       const { id } = req.params;
 
       if (!userId) {
@@ -139,7 +139,7 @@ export class AnnotationController {
    */
   async getDocumentAnnotations(req: Request, res: Response): Promise<void> {
     try {
-      const userId = req.headers['user-id'] as string;
+      const userId = req.user?.id;
       const { documentId } = req.params;
       const annotationType = req.query.type as AnnotationType;
 
@@ -203,7 +203,7 @@ export class AnnotationController {
    */
   async getUserAnnotations(req: Request, res: Response): Promise<void> {
     try {
-      const userId = req.headers['user-id'] as string;
+      const userId = req.user?.id;
 
       if (!userId) {
         res.status(401).json({
@@ -285,7 +285,7 @@ export class AnnotationController {
    */
   async updateAnnotation(req: Request, res: Response): Promise<void> {
     try {
-      const userId = req.headers['user-id'] as string;
+      const userId = req.user?.id;
       const { id } = req.params;
       const { content, positionData, color, tags } = req.body;
 
@@ -365,7 +365,7 @@ export class AnnotationController {
    */
   async deleteAnnotation(req: Request, res: Response): Promise<void> {
     try {
-      const userId = req.headers['user-id'] as string;
+      const userId = req.user?.id;
       const { id } = req.params;
 
       if (!userId) {
@@ -416,7 +416,7 @@ export class AnnotationController {
    */
   async searchAnnotations(req: Request, res: Response): Promise<void> {
     try {
-      const userId = req.headers['user-id'] as string;
+      const userId = req.user?.id;
 
       if (!userId) {
         res.status(401).json({
@@ -507,7 +507,7 @@ export class AnnotationController {
    */
   async getAnnotationStats(req: Request, res: Response): Promise<void> {
     try {
-      const userId = req.headers['user-id'] as string;
+      const userId = req.user?.id;
 
       if (!userId) {
         res.status(401).json({
@@ -539,7 +539,7 @@ export class AnnotationController {
    */
   async getRecentAnnotations(req: Request, res: Response): Promise<void> {
     try {
-      const userId = req.headers['user-id'] as string;
+      const userId = req.user?.id;
 
       if (!userId) {
         res.status(401).json({
@@ -584,7 +584,7 @@ export class AnnotationController {
    */
   async deleteDocumentAnnotations(req: Request, res: Response): Promise<void> {
     try {
-      const userId = req.headers['user-id'] as string;
+      const userId = req.user?.id;
       const { documentId } = req.params;
 
       if (!userId) {
@@ -630,7 +630,7 @@ export class AnnotationController {
    */
   async getUserTags(req: Request, res: Response): Promise<void> {
     try {
-      const userId = req.headers['user-id'] as string;
+      const userId = req.user?.id;
 
       if (!userId) {
         res.status(401).json({
@@ -665,7 +665,7 @@ export class AnnotationController {
    */
   async getAnnotationsByTags(req: Request, res: Response): Promise<void> {
     try {
-      const userId = req.headers['user-id'] as string;
+      const userId = req.user?.id;
 
       if (!userId) {
         res.status(401).json({
@@ -747,7 +747,7 @@ export class AnnotationController {
    */
   async getTagStats(req: Request, res: Response): Promise<void> {
     try {
-      const userId = req.headers['user-id'] as string;
+      const userId = req.user?.id;
 
       if (!userId) {
         res.status(401).json({

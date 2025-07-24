@@ -181,7 +181,7 @@ describe('DocumentController', () => {
     it('should get document successfully', async () => {
       mockRequest = {
         params: { id: 'test-doc-id' },
-        headers: { 'user-id': 'test-user-id' },
+        user: { id: 'test-user-id' },
       };
 
       const mockDocument = {
@@ -223,7 +223,7 @@ describe('DocumentController', () => {
     it('should return 404 when document does not exist', async () => {
       mockRequest = {
         params: { id: 'nonexistent-doc-id' },
-        headers: { 'user-id': 'test-user-id' },
+        user: { id: 'test-user-id' },
       };
 
       (documentModel.findByIdAndUser as jest.Mock).mockResolvedValue(null);
@@ -243,7 +243,7 @@ describe('DocumentController', () => {
     it('should return 401 when user ID is missing', async () => {
       mockRequest = {
         params: { id: 'test-doc-id' },
-        headers: {},
+        user: undefined,
       };
 
       await documentController.getDocument(
@@ -254,7 +254,7 @@ describe('DocumentController', () => {
       expect(mockStatus).toHaveBeenCalledWith(401);
       expect(mockJson).toHaveBeenCalledWith({
         error: 'Unauthorized',
-        message: 'User ID is required',
+        message: 'User authentication required',
       });
     });
   });
@@ -263,7 +263,7 @@ describe('DocumentController', () => {
     it('should delete document successfully', async () => {
       mockRequest = {
         params: { id: 'test-doc-id' },
-        headers: { 'user-id': 'test-user-id' },
+        user: { id: 'test-user-id' },
       };
 
       const mockDocument = {
@@ -293,7 +293,7 @@ describe('DocumentController', () => {
     it('should return 404 when document does not exist', async () => {
       mockRequest = {
         params: { id: 'nonexistent-doc-id' },
-        headers: { 'user-id': 'test-user-id' },
+        user: { id: 'test-user-id' },
       };
 
       (documentModel.findByIdAndUser as jest.Mock).mockResolvedValue(null);
@@ -313,7 +313,7 @@ describe('DocumentController', () => {
     it('should return 401 when user ID is missing', async () => {
       mockRequest = {
         params: { id: 'test-doc-id' },
-        headers: {},
+        user: undefined,
       };
 
       await documentController.deleteDocument(
@@ -324,7 +324,7 @@ describe('DocumentController', () => {
       expect(mockStatus).toHaveBeenCalledWith(401);
       expect(mockJson).toHaveBeenCalledWith({
         error: 'Unauthorized',
-        message: 'User ID is required',
+        message: 'User authentication required',
       });
     });
   });
@@ -332,7 +332,7 @@ describe('DocumentController', () => {
   describe('listDocuments', () => {
     it('should list documents successfully', async () => {
       mockRequest = {
-        headers: { 'user-id': 'test-user-id' },
+        user: { id: 'test-user-id' },
         query: { page: '1', limit: '10' },
       };
 
@@ -378,7 +378,7 @@ describe('DocumentController', () => {
 
     it('should return 401 when user ID is missing', async () => {
       mockRequest = {
-        headers: {},
+        user: undefined,
         query: {},
       };
 
@@ -390,7 +390,7 @@ describe('DocumentController', () => {
       expect(mockStatus).toHaveBeenCalledWith(401);
       expect(mockJson).toHaveBeenCalledWith({
         error: 'Unauthorized',
-        message: 'User ID is required',
+        message: 'User authentication required',
       });
     });
   });
@@ -399,7 +399,7 @@ describe('DocumentController', () => {
     it('should update processing status successfully', async () => {
       mockRequest = {
         params: { id: 'test-doc-id' },
-        headers: { 'user-id': 'test-user-id' },
+        user: { id: 'test-user-id' },
         body: { status: 'completed', processedTimestamp: '2024-01-01T00:00:00.000Z' },
       };
 
@@ -437,7 +437,7 @@ describe('DocumentController', () => {
     it('should return 400 for invalid status', async () => {
       mockRequest = {
         params: { id: 'test-doc-id' },
-        headers: { 'user-id': 'test-user-id' },
+        user: { id: 'test-user-id' },
         body: { status: 'invalid-status' },
       };
 
@@ -456,7 +456,7 @@ describe('DocumentController', () => {
     it('should return 404 when document not found', async () => {
       mockRequest = {
         params: { id: 'nonexistent-doc-id' },
-        headers: { 'user-id': 'test-user-id' },
+        user: { id: 'test-user-id' },
         body: { status: 'completed' },
       };
 
@@ -479,7 +479,7 @@ describe('DocumentController', () => {
     it('should get processing status successfully', async () => {
       mockRequest = {
         params: { id: 'test-doc-id' },
-        headers: { 'user-id': 'test-user-id' },
+        user: { id: 'test-user-id' },
       };
 
       const mockDocument = {
@@ -528,7 +528,7 @@ describe('DocumentController', () => {
     it('should update metadata successfully', async () => {
       mockRequest = {
         params: { id: 'test-doc-id' },
-        headers: { 'user-id': 'test-user-id' },
+        user: { id: 'test-user-id' },
         body: {
           metadata: {
             extractedContent: { textLength: 1000, pageCount: 5 }
@@ -567,7 +567,7 @@ describe('DocumentController', () => {
     it('should return 400 for invalid metadata', async () => {
       mockRequest = {
         params: { id: 'test-doc-id' },
-        headers: { 'user-id': 'test-user-id' },
+        user: { id: 'test-user-id' },
         body: { metadata: 'invalid-metadata' },
       };
 
@@ -588,7 +588,7 @@ describe('DocumentController', () => {
     it('should add processing step successfully', async () => {
       mockRequest = {
         params: { id: 'test-doc-id' },
-        headers: { 'user-id': 'test-user-id' },
+        user: { id: 'test-user-id' },
         body: {
           stepName: 'ingestion',
           status: 'completed'
@@ -630,7 +630,7 @@ describe('DocumentController', () => {
     it('should add processing step with error', async () => {
       mockRequest = {
         params: { id: 'test-doc-id' },
-        headers: { 'user-id': 'test-user-id' },
+        user: { id: 'test-user-id' },
         body: {
           stepName: 'analysis',
           status: 'failed',
@@ -674,7 +674,7 @@ describe('DocumentController', () => {
     it('should return 400 for missing required fields', async () => {
       mockRequest = {
         params: { id: 'test-doc-id' },
-        headers: { 'user-id': 'test-user-id' },
+        user: { id: 'test-user-id' },
         body: { stepName: 'ingestion' }, // missing status
       };
 
@@ -687,6 +687,249 @@ describe('DocumentController', () => {
       expect(mockJson).toHaveBeenCalledWith({
         error: 'Missing required fields',
         message: 'stepName and status are required'
+      });
+    });
+  });
+
+  describe('processDocument', () => {
+    it('should start document processing successfully', async () => {
+      mockRequest = {
+        params: { id: 'test-doc-id' },
+        user: { id: 'test-user-id' },
+        body: { processingOptions: { includeImages: true } },
+      };
+
+      const mockDocument = {
+        id: 'test-doc-id',
+        user_id: 'test-user-id',
+        processing_status: 'pending'
+      };
+
+      (documentModel.findByIdAndUser as jest.Mock).mockResolvedValue(mockDocument);
+      (documentModel.updateStatus as jest.Mock).mockResolvedValue(true);
+      (documentModel.addProcessingStep as jest.Mock).mockResolvedValue(true);
+
+      await documentController.processDocument(
+        mockRequest as Request,
+        mockResponse as Response
+      );
+
+      expect(documentModel.updateStatus).toHaveBeenCalledWith('test-doc-id', 'processing');
+      expect(documentModel.addProcessingStep).toHaveBeenCalledWith(
+        'test-doc-id',
+        'processing_started',
+        'processing'
+      );
+
+      expect(mockJson).toHaveBeenCalledWith({
+        success: true,
+        message: 'Document processing started successfully',
+        data: {
+          documentId: 'test-doc-id',
+          processingStatus: 'processing',
+          startedAt: expect.any(Date),
+          processingOptions: { includeImages: true }
+        }
+      });
+    });
+
+    it('should return 409 when document is already processing', async () => {
+      mockRequest = {
+        params: { id: 'test-doc-id' },
+        user: { id: 'test-user-id' },
+        body: {},
+      };
+
+      const mockDocument = {
+        id: 'test-doc-id',
+        user_id: 'test-user-id',
+        processing_status: 'processing'
+      };
+
+      (documentModel.findByIdAndUser as jest.Mock).mockResolvedValue(mockDocument);
+
+      await documentController.processDocument(
+        mockRequest as Request,
+        mockResponse as Response
+      );
+
+      expect(mockStatus).toHaveBeenCalledWith(409);
+      expect(mockJson).toHaveBeenCalledWith({
+        error: 'Document already processing',
+        message: 'This document is currently being processed'
+      });
+    });
+
+    it('should return 409 when document is already completed', async () => {
+      mockRequest = {
+        params: { id: 'test-doc-id' },
+        user: { id: 'test-user-id' },
+        body: {},
+      };
+
+      const mockDocument = {
+        id: 'test-doc-id',
+        user_id: 'test-user-id',
+        processing_status: 'completed'
+      };
+
+      (documentModel.findByIdAndUser as jest.Mock).mockResolvedValue(mockDocument);
+
+      await documentController.processDocument(
+        mockRequest as Request,
+        mockResponse as Response
+      );
+
+      expect(mockStatus).toHaveBeenCalledWith(409);
+      expect(mockJson).toHaveBeenCalledWith({
+        error: 'Document already processed',
+        message: 'This document has already been processed successfully'
+      });
+    });
+
+    it('should return 404 when document not found', async () => {
+      mockRequest = {
+        params: { id: 'nonexistent-doc-id' },
+        user: { id: 'test-user-id' },
+        body: {},
+      };
+
+      (documentModel.findByIdAndUser as jest.Mock).mockResolvedValue(null);
+
+      await documentController.processDocument(
+        mockRequest as Request,
+        mockResponse as Response
+      );
+
+      expect(mockStatus).toHaveBeenCalledWith(404);
+      expect(mockJson).toHaveBeenCalledWith({
+        error: 'Document not found',
+        message: 'The requested document does not exist or you do not have access to it'
+      });
+    });
+
+    it('should return 401 when user not authenticated', async () => {
+      mockRequest = {
+        params: { id: 'test-doc-id' },
+        user: undefined,
+        body: {},
+      };
+
+      await documentController.processDocument(
+        mockRequest as Request,
+        mockResponse as Response
+      );
+
+      expect(mockStatus).toHaveBeenCalledWith(401);
+      expect(mockJson).toHaveBeenCalledWith({
+        error: 'Unauthorized',
+        message: 'User authentication required'
+      });
+    });
+  });
+
+  describe('cancelProcessing', () => {
+    it('should cancel document processing successfully', async () => {
+      mockRequest = {
+        params: { id: 'test-doc-id' },
+        user: { id: 'test-user-id' },
+      };
+
+      const mockDocument = {
+        id: 'test-doc-id',
+        user_id: 'test-user-id',
+        processing_status: 'processing'
+      };
+
+      (documentModel.findByIdAndUser as jest.Mock).mockResolvedValue(mockDocument);
+      (documentModel.updateStatus as jest.Mock).mockResolvedValue(true);
+      (documentModel.addProcessingStep as jest.Mock).mockResolvedValue(true);
+
+      await documentController.cancelProcessing(
+        mockRequest as Request,
+        mockResponse as Response
+      );
+
+      expect(documentModel.updateStatus).toHaveBeenCalledWith('test-doc-id', 'failed');
+      expect(documentModel.addProcessingStep).toHaveBeenCalledWith(
+        'test-doc-id',
+        'processing_cancelled',
+        'failed',
+        'Processing cancelled by user'
+      );
+
+      expect(mockJson).toHaveBeenCalledWith({
+        success: true,
+        message: 'Document processing cancelled successfully',
+        data: {
+          documentId: 'test-doc-id',
+          processingStatus: 'failed',
+          cancelledAt: expect.any(Date)
+        }
+      });
+    });
+
+    it('should return 400 when document is not being processed', async () => {
+      mockRequest = {
+        params: { id: 'test-doc-id' },
+        user: { id: 'test-user-id' },
+      };
+
+      const mockDocument = {
+        id: 'test-doc-id',
+        user_id: 'test-user-id',
+        processing_status: 'completed'
+      };
+
+      (documentModel.findByIdAndUser as jest.Mock).mockResolvedValue(mockDocument);
+
+      await documentController.cancelProcessing(
+        mockRequest as Request,
+        mockResponse as Response
+      );
+
+      expect(mockStatus).toHaveBeenCalledWith(400);
+      expect(mockJson).toHaveBeenCalledWith({
+        error: 'Cannot cancel processing',
+        message: 'Document is not currently being processed'
+      });
+    });
+
+    it('should return 404 when document not found', async () => {
+      mockRequest = {
+        params: { id: 'nonexistent-doc-id' },
+        user: { id: 'test-user-id' },
+      };
+
+      (documentModel.findByIdAndUser as jest.Mock).mockResolvedValue(null);
+
+      await documentController.cancelProcessing(
+        mockRequest as Request,
+        mockResponse as Response
+      );
+
+      expect(mockStatus).toHaveBeenCalledWith(404);
+      expect(mockJson).toHaveBeenCalledWith({
+        error: 'Document not found',
+        message: 'The requested document does not exist or you do not have access to it'
+      });
+    });
+
+    it('should return 401 when user not authenticated', async () => {
+      mockRequest = {
+        params: { id: 'test-doc-id' },
+        user: undefined,
+      };
+
+      await documentController.cancelProcessing(
+        mockRequest as Request,
+        mockResponse as Response
+      );
+
+      expect(mockStatus).toHaveBeenCalledWith(401);
+      expect(mockJson).toHaveBeenCalledWith({
+        error: 'Unauthorized',
+        message: 'User authentication required'
       });
     });
   });

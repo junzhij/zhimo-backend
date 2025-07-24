@@ -279,4 +279,77 @@ router.get('/:id/stats', authenticateToken, validateUUID, notebookController.get
  */
 router.post('/:id/export', authenticateToken, validateUUID, notebookController.exportToPDF);
 
+// Validation middleware for sharing
+const validateShare = [
+  body('userEmail')
+    .isEmail()
+    .withMessage('Valid email is required'),
+  body('permission')
+    .optional()
+    .isIn(['read', 'write'])
+    .withMessage('Permission must be either "read" or "write"'),
+  validateRequest
+];
+
+const validateUnshare = [
+  body('userEmail')
+    .isEmail()
+    .withMessage('Valid email is required'),
+  validateRequest
+];
+
+const validateComment = [
+  body('content')
+    .trim()
+    .isLength({ min: 1, max: 1000 })
+    .withMessage('Comment content must be between 1 and 1000 characters'),
+  body('elementId')
+    .optional()
+    .isUUID()
+    .withMessage('Element ID must be a valid UUID'),
+  validateRequest
+];
+
+/**
+ * @route POST /api/notebooks/:id/share
+ * @desc Share notebook with another user
+ * @access Private
+ */
+router.post('/:id/share', authenticateToken, validateUUID, validateShare, notebookController.shareNotebook);
+
+/**
+ * @route GET /api/notebooks/:id/sharing
+ * @desc Get notebook sharing information
+ * @access Private
+ */
+router.get('/:id/sharing', authenticateToken, validateUUID, notebookController.getNotebookSharing);
+
+/**
+ * @route DELETE /api/notebooks/:id/share
+ * @desc Remove sharing access for a user
+ * @access Private
+ */
+router.delete('/:id/share', authenticateToken, validateUUID, validateUnshare, notebookController.unshareNotebook);
+
+/**
+ * @route GET /api/notebooks/shared
+ * @desc Get notebooks shared with the current user
+ * @access Private
+ */
+router.get('/shared', authenticateToken, validatePagination, notebookController.getSharedNotebooks);
+
+/**
+ * @route POST /api/notebooks/:id/comments
+ * @desc Add comment to notebook
+ * @access Private
+ */
+router.post('/:id/comments', authenticateToken, validateUUID, validateComment, notebookController.addComment);
+
+/**
+ * @route GET /api/notebooks/:id/comments
+ * @desc Get comments for a notebook
+ * @access Private
+ */
+router.get('/:id/comments', authenticateToken, validateUUID, notebookController.getComments);
+
 export default router;

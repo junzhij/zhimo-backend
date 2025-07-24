@@ -26,7 +26,7 @@ describe('AnnotationController', () => {
     mockStatus = jest.fn().mockReturnValue({ json: mockJson });
     
     mockRequest = {
-      headers: { 'user-id': mockUserId },
+      user: { id: mockUserId } as any,
       params: {},
       query: {},
       body: {}
@@ -96,7 +96,7 @@ describe('AnnotationController', () => {
     });
 
     it('should return 401 when user ID is missing', async () => {
-      mockRequest.headers = {};
+      mockRequest.user = undefined;
 
       await annotationController.createAnnotation(mockRequest as Request, mockResponse as Response);
 

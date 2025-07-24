@@ -77,7 +77,14 @@ describe('AuthController', () => {
 
       expect(response.status).toBe(201);
       expect(response.body.message).toBe('User registered successfully');
-      expect(response.body.data).toEqual(mockResponse);
+      expect(response.body.data).toEqual({
+        ...mockResponse,
+        user: {
+          ...mockResponse.user,
+          created_at: mockResponse.user.created_at.toISOString(),
+          updated_at: mockResponse.user.updated_at.toISOString()
+        }
+      });
     });
 
     it('should return 400 for invalid email', async () => {
@@ -153,7 +160,14 @@ describe('AuthController', () => {
 
       expect(response.status).toBe(200);
       expect(response.body.message).toBe('Login successful');
-      expect(response.body.data).toEqual(mockResponse);
+      expect(response.body.data).toEqual({
+        ...mockResponse,
+        user: {
+          ...mockResponse.user,
+          created_at: mockResponse.user.created_at.toISOString(),
+          updated_at: mockResponse.user.updated_at.toISOString()
+        }
+      });
     });
 
     it('should return 400 for invalid email format', async () => {

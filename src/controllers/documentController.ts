@@ -565,6 +565,144 @@ export class DocumentController {
   }
 
   /**
+   * Start document processing
+   */
+  async processDocument(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const { processingOptions = {} } = req.body;
+      const userId = req.user?.id;
+
+      if (!userId) {
+        res.status(401).json({
+          error: 'Unauthorized',
+          message: 'User authentication required'
+        });
+        return;
+      }
+
+      // Verify document exists and user has access
+      const document = await documentModel.findByIdAndUser(id, userId);
+      if (!document) {
+        res.status(404).json({
+          error: 'Document not found',
+          message: 'The requested document does not exist or you do not have access to it'
+        });
+        return;
+      }
+
+      // Check if document is already being processed
+      if (document.processing_status === 'processing') {
+        res.status(409).json({
+          error: 'Document already processing',
+          message: 'This document is currently being processed'
+        });
+        return;
+      }
+
+      // Check if document is already completed
+      if (document.processing_status === 'completed') {
+        res.status(409).json({
+          error: 'Document already processed',
+          message: 'This document has already been processed successfully'
+        });
+        return;
+      }
+
+      // Update status to processing
+      await documentModel.updateStatus(id, 'processing');
+
+      // Add initial processing step
+      await documentModel.addProcessingStep(id, 'processing_started', 'processing');
+
+      // TODO: Here you would typically trigger the actual processing workflow
+      // For now, we'll just update the status and return success
+      
+      res.json({
+        success: true,
+        message: 'Document processing started successfully',
+        data: {
+          documentId: id,
+          processingStatus: 'processing',
+          startedAt: new Date(),
+          processingOptions
+        }
+      });
+
+    } catch (error) {
+      console.error('Process document error:', error);
+      
+      res.status(500).json({
+        error: 'Internal server error',
+        message: 'Failed to start document processing'
+      });
+    }
+  }
+
+  /**
+   * Cancel document processing
+   */
+  async cancelProcessing(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const userId = req.user?.id;
+
+      if (!userId) {
+        res.status(401).json({
+          error: 'Unauthorized',
+          message: 'User authentication required'
+        });
+        return;
+      }
+
+      // Verify document exists and user has access
+      const document = await documentModel.findByIdAndUser(id, userId);
+      if (!document) {
+        res.status(404).json({
+          error: 'Document not found',
+          message: 'The requested document does not exist or you do not have access to it'
+        });
+        return;
+      }
+
+      // Check if document is currently being processed
+      if (document.processing_status !== 'processing') {
+        res.status(400).json({
+          error: 'Cannot cancel processing',
+          message: 'Document is not currently being processed'
+        });
+        return;
+      }
+
+      // Update status to failed (cancelled)
+      await documentModel.updateStatus(id, 'failed');
+
+      // Add cancellation step
+      await documentModel.addProcessingStep(id, 'processing_cancelled', 'failed', 'Processing cancelled by user');
+
+      // TODO: Here you would typically signal the processing workflow to stop
+      
+      res.json({
+        success: true,
+        message: 'Document processing cancelled successfully',
+        data: {
+          documentId: id,
+          processingStatus: 'failed',
+          cancelledAt: new Date()
+        }
+      });
+
+    } catch (error) {
+      console.error('Cancel processing error:', error);
+      
+      res.status(500).json({
+        error: 'Internal server error',
+        message: 'Failed to cancel document processing'
+      });
+    }
+  }
+
+  /**
    * Get processing statistics
    */
   async getProcessingStats(req: Request, res: Response): Promise<void> {

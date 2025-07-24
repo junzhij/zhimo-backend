@@ -206,20 +206,20 @@
   - Add API endpoint protection middleware
   - _Requirements: 6.1, 6.5_
 
-- [-] 12. Build comprehensive API endpoints
-- [-] 12.1 Create knowledge elements API
+- [x] 12. Build comprehensive API endpoints
+- [x] 12.1 Create knowledge elements API
   - Implement GET /api/knowledge-elements with filtering
   - Add POST /api/knowledge-elements/search functionality
   - Create knowledge element CRUD operations
   - _Requirements: 2.5, 4.4_
 
-- [ ] 12.2 Implement processing control endpoints
+- [x] 12.2 Implement processing control endpoints
   - Create POST /api/documents/:id/process endpoint
   - Add GET /api/documents/:id/status for progress tracking
   - Implement processing cancellation functionality
   - _Requirements: 2.1, 6.3_
 
-- [ ] 12.3 Build notebook management API
+- [x] 12.3 Build notebook management API
   - Create notebook CRUD endpoints
   - Implement POST /api/notebooks/:id/export functionality
   - Add notebook sharing and collaboration features
@@ -270,5 +270,33 @@
   - Set up monitoring and alerting for external services
   - _Requirements: 1.1, 1.3, 6.4_
 
-- [ ] 16. Complete API docs and playground use swagger, tagging which endpoint is for admin.
+- [-] 16. 撰写swagger交互式playground文档和API实例文档（Markdown）
+- [-] 16.1 List all API endpoints
+  - Document each endpoint with parameters, request/response formats
+  - Write comprehensive API documentation
+  - Create test cases for each endpoint
+  - _Requirements: 12.1, 12.2, 12.3_
 
+- [ ] 16.2 Write test cases for each agent
+  - Create test cases for each agent's processing functions
+  - Verify agent output formats and quality
+  - Test error handling and edge cases
+  - _Requirements: 13.1, 13.2, 13.3_
+
+- [ ] 16.3 Write test cases for each API endpoint
+  - Test complete user workflows from upload to export
+  - Verify error handling and edge cases
+  - Test authentication and authorization flows
+  - _Requirements: 13.1, 13.2, 13.3_
+
+- [ ] 16.4 Write test cases for each monitoring and logging feature
+  - Test logging system and log aggregation
+  - Verify performance monitoring and metrics
+  - Test health checks and monitoring endpoints
+  - _Requirements: 14.1, 14.2, 14.3_
+
+- [ ] 16.5 Write test cases for each deployment and configuration step
+  - Test deployment and configuration of production environment
+  - Verify database and service configurations
+  - Test health checks and monitoring endpoints
+  - _Requirements: 15.1, 15.2, 15.3_

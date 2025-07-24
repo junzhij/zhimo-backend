@@ -857,4 +857,276 @@ describe('NotebookController', () => {
             expect(mockJson).toHaveBeenCalledWith({ error: 'Failed to export notebook to PDF' });
         });
     });
+
+    describe('shareNotebook', () => {
+        it('should share notebook successfully', async () => {
+            const mockNotebook = {
+                id: mockNotebookId,
+                user_id: mockUserId,
+                title: 'Test Notebook',
+                description: 'Test Description',
+                created_at: new Date(),
+                updated_at: new Date()
+            };
+
+            mockRequest.params = { id: mockNotebookId };
+            mockRequest.body = {
+                userEmail: 'test@example.com',
+                permission: 'read'
+            };
+
+            mockNotebookModel.findByIdAndUser.mockResolvedValue(mockNotebook);
+
+            await notebookController.shareNotebook(mockRequest as Request, mockResponse as Response);
+
+            expect(mockNotebookModel.findByIdAndUser).toHaveBeenCalledWith(mockNotebookId, mockUserId);
+            expect(mockJson).toHaveBeenCalledWith({
+                success: true,
+                message: 'Notebook shared successfully',
+                data: {
+                    notebookId: mockNotebookId,
+                    sharedWith: 'test@example.com',
+                    permission: 'read',
+                    sharedAt: expect.any(Date)
+                }
+            });
+        });
+
+        it('should return 400 when user email is missing', async () => {
+            mockRequest.params = { id: mockNotebookId };
+            mockRequest.body = { permission: 'read' };
+
+            await notebookController.shareNotebook(mockRequest as Request, mockResponse as Response);
+
+            expect(mockStatus).toHaveBeenCalledWith(400);
+            expect(mockJson).toHaveBeenCalledWith({ error: 'User email is required' });
+        });
+
+        it('should return 400 for invalid permission', async () => {
+            mockRequest.params = { id: mockNotebookId };
+            mockRequest.body = {
+                userEmail: 'test@example.com',
+                permission: 'invalid'
+            };
+
+            await notebookController.shareNotebook(mockRequest as Request, mockResponse as Response);
+
+            expect(mockStatus).toHaveBeenCalledWith(400);
+            expect(mockJson).toHaveBeenCalledWith({ error: 'Permission must be either "read" or "write"' });
+        });
+
+        it('should return 404 when notebook not found', async () => {
+            mockRequest.params = { id: mockNotebookId };
+            mockRequest.body = {
+                userEmail: 'test@example.com',
+                permission: 'read'
+            };
+
+            mockNotebookModel.findByIdAndUser.mockResolvedValue(null);
+
+            await notebookController.shareNotebook(mockRequest as Request, mockResponse as Response);
+
+            expect(mockStatus).toHaveBeenCalledWith(404);
+            expect(mockJson).toHaveBeenCalledWith({ error: 'Notebook not found' });
+        });
+    });
+
+    describe('getNotebookSharing', () => {
+        it('should get notebook sharing information successfully', async () => {
+            const mockNotebook = {
+                id: mockNotebookId,
+                user_id: mockUserId,
+                title: 'Test Notebook',
+                description: 'Test Description',
+                created_at: new Date(),
+                updated_at: new Date()
+            };
+
+            mockRequest.params = { id: mockNotebookId };
+            mockNotebookModel.findByIdAndUser.mockResolvedValue(mockNotebook);
+
+            await notebookController.getNotebookSharing(mockRequest as Request, mockResponse as Response);
+
+            expect(mockJson).toHaveBeenCalledWith({
+                success: true,
+                data: {
+                    notebookId: mockNotebookId,
+                    isPublic: false,
+                    sharedWith: [],
+                    permissions: {
+                        canShare: true,
+                        canEdit: true,
+                        canDelete: true
+                    }
+                }
+            });
+        });
+
+        it('should return 404 when notebook not found', async () => {
+            mockRequest.params = { id: mockNotebookId };
+            mockNotebookModel.findByIdAndUser.mockResolvedValue(null);
+
+            await notebookController.getNotebookSharing(mockRequest as Request, mockResponse as Response);
+
+            expect(mockStatus).toHaveBeenCalledWith(404);
+            expect(mockJson).toHaveBeenCalledWith({ error: 'Notebook not found' });
+        });
+    });
+
+    describe('unshareNotebook', () => {
+        it('should unshare notebook successfully', async () => {
+            const mockNotebook = {
+                id: mockNotebookId,
+                user_id: mockUserId,
+                title: 'Test Notebook',
+                description: 'Test Description',
+                created_at: new Date(),
+                updated_at: new Date()
+            };
+
+            mockRequest.params = { id: mockNotebookId };
+            mockRequest.body = { userEmail: 'test@example.com' };
+            mockNotebookModel.findByIdAndUser.mockResolvedValue(mockNotebook);
+
+            await notebookController.unshareNotebook(mockRequest as Request, mockResponse as Response);
+
+            expect(mockJson).toHaveBeenCalledWith({
+                success: true,
+                message: 'Notebook sharing removed successfully',
+                data: {
+                    notebookId: mockNotebookId,
+                    removedFrom: 'test@example.com',
+                    removedAt: expect.any(Date)
+                }
+            });
+        });
+
+        it('should return 400 when user email is missing', async () => {
+            mockRequest.params = { id: mockNotebookId };
+            mockRequest.body = {};
+
+            await notebookController.unshareNotebook(mockRequest as Request, mockResponse as Response);
+
+            expect(mockStatus).toHaveBeenCalledWith(400);
+            expect(mockJson).toHaveBeenCalledWith({ error: 'User email is required' });
+        });
+    });
+
+    describe('getSharedNotebooks', () => {
+        it('should get shared notebooks successfully', async () => {
+            mockRequest.query = { limit: '10', offset: '0' };
+
+            await notebookController.getSharedNotebooks(mockRequest as Request, mockResponse as Response);
+
+            expect(mockJson).toHaveBeenCalledWith({
+                success: true,
+                data: {
+                    notebooks: [],
+                    pagination: {
+                        limit: 10,
+                        offset: 0,
+                        total: 0,
+                        hasMore: false
+                    }
+                }
+            });
+        });
+    });
+
+    describe('addComment', () => {
+        it('should add comment successfully', async () => {
+            const mockNotebook = {
+                id: mockNotebookId,
+                user_id: mockUserId,
+                title: 'Test Notebook',
+                description: 'Test Description',
+                created_at: new Date(),
+                updated_at: new Date()
+            };
+
+            mockRequest.params = { id: mockNotebookId };
+            mockRequest.body = {
+                content: 'This is a test comment',
+                elementId: uuidv4()
+            };
+
+            mockNotebookModel.findByIdAndUser.mockResolvedValue(mockNotebook);
+
+            await notebookController.addComment(mockRequest as Request, mockResponse as Response);
+
+            expect(mockStatus).toHaveBeenCalledWith(201);
+            expect(mockJson).toHaveBeenCalledWith({
+                success: true,
+                message: 'Comment added successfully',
+                data: expect.objectContaining({
+                    id: expect.any(String),
+                    notebookId: mockNotebookId,
+                    userId: mockUserId,
+                    content: 'This is a test comment',
+                    elementId: expect.any(String),
+                    createdAt: expect.any(Date),
+                    updatedAt: expect.any(Date)
+                })
+            });
+        });
+
+        it('should return 400 when content is missing', async () => {
+            mockRequest.params = { id: mockNotebookId };
+            mockRequest.body = {};
+
+            await notebookController.addComment(mockRequest as Request, mockResponse as Response);
+
+            expect(mockStatus).toHaveBeenCalledWith(400);
+            expect(mockJson).toHaveBeenCalledWith({ error: 'Comment content is required' });
+        });
+
+        it('should return 404 when notebook not found', async () => {
+            mockRequest.params = { id: mockNotebookId };
+            mockRequest.body = { content: 'Test comment' };
+            mockNotebookModel.findByIdAndUser.mockResolvedValue(null);
+
+            await notebookController.addComment(mockRequest as Request, mockResponse as Response);
+
+            expect(mockStatus).toHaveBeenCalledWith(404);
+            expect(mockJson).toHaveBeenCalledWith({ error: 'Notebook not found' });
+        });
+    });
+
+    describe('getComments', () => {
+        it('should get comments successfully', async () => {
+            const mockNotebook = {
+                id: mockNotebookId,
+                user_id: mockUserId,
+                title: 'Test Notebook',
+                description: 'Test Description',
+                created_at: new Date(),
+                updated_at: new Date()
+            };
+
+            mockRequest.params = { id: mockNotebookId };
+            mockRequest.query = { elementId: uuidv4() };
+            mockNotebookModel.findByIdAndUser.mockResolvedValue(mockNotebook);
+
+            await notebookController.getComments(mockRequest as Request, mockResponse as Response);
+
+            expect(mockJson).toHaveBeenCalledWith({
+                success: true,
+                data: {
+                    comments: [],
+                    notebookId: mockNotebookId,
+                    elementId: expect.any(String)
+                }
+            });
+        });
+
+        it('should return 404 when notebook not found', async () => {
+            mockRequest.params = { id: mockNotebookId };
+            mockNotebookModel.findByIdAndUser.mockResolvedValue(null);
+
+            await notebookController.getComments(mockRequest as Request, mockResponse as Response);
+
+            expect(mockStatus).toHaveBeenCalledWith(404);
+            expect(mockJson).toHaveBeenCalledWith({ error: 'Notebook not found' });
+        });
+    });
 });

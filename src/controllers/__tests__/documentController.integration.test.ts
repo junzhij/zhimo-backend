@@ -8,6 +8,26 @@ import documentRoutes from '../../routes/documents';
 // Mock dependencies
 jest.mock('../../models/documentModel');
 jest.mock('../../services/s3Service');
+jest.mock('../../middleware/auth', () => ({
+    authenticateToken: (req: any, res: any, next: any) => {
+        const userId = req.headers['user-id'];
+        if (userId) {
+            req.user = { id: userId };
+            next();
+        } else {
+            res.status(401).json({ error: 'Unauthorized' });
+        }
+    },
+    requireAdmin: (req: any, res: any, next: any) => {
+        const userId = req.headers['user-id'];
+        if (userId) {
+            req.user = { id: userId, role: 'admin' };
+            next();
+        } else {
+            res.status(401).json({ error: 'Unauthorized' });
+        }
+    }
+}));
 
 const mockDocumentModel = documentModel as jest.Mocked<typeof documentModel>;
 const mockS3Service = s3Service as jest.Mocked<typeof s3Service>;
@@ -260,6 +280,7 @@ describe('Document Controller Integration Tests', () => {
 
             const response = await request(app)
                 .get('/api/documents/admin/stats')
+                .set('user-id', 'admin-user-123')
                 .expect(200);
 
             expect(response.body.success).toBe(true);

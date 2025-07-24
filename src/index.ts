@@ -54,6 +54,7 @@ app.get('/health', async (_req, res) => {
 import documentRoutes from './routes/documents';
 import annotationRoutes from './routes/annotations';
 import notebookRoutes from './routes/notebooks';
+import knowledgeElementRoutes from './routes/knowledgeElements';
 import authRoutes from './routes/auth';
 
 // API routes
@@ -61,6 +62,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/annotations', annotationRoutes);
 app.use('/api/notebooks', notebookRoutes);
+app.use('/api/knowledge-elements', knowledgeElementRoutes);
 
 // Catch-all for unimplemented API routes
 app.use('/api', (_req, res) => {
